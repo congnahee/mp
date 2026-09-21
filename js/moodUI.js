@@ -73,4 +73,7 @@ $('#moodList').addEventListener('click', (e)=>{
   renderThermometer($(`#thermo-${sid}-${timing}`), next);
   $(`#val-${sid}-${timing}`).textContent = next;
   flashSaveStatus();
+  if(DB.graphType[cid]==='mood' && dateStr===formatDateYMD(new Date())){
+    GraphRenderer.render(cid);
+  }
 });

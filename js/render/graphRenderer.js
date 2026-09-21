@@ -20,6 +20,7 @@ const GraphRenderer = {
     if(type==='bar') GraphRenderer.bar(area, ranked, rankChanges);
     else if(type==='race') GraphRenderer.race(area, ranked, rankChanges);
     else if(type==='line') GraphRenderer.line(area, ranked, cid, viewMode);
+    else if(type==='mood') GraphRenderer.mood(area, cid);
     else GraphRenderer.donut(area, ranked);
     $$('#graphSwitch .icon-btn').forEach(b=>b.classList.toggle('on', b.dataset.g===type));
     $$('#modeSwitch .icon-btn').forEach(b=>b.classList.toggle('on', b.dataset.m===((DB.viewMode[cid])||'student')));
@@ -222,6 +223,52 @@ const GraphRenderer = {
     });
     html += '</div>';
     area.innerHTML = html;
+  },
+  mood(area, cid){
+    // bar()/race()와 같은 방식으로 기존 DOM을 재사용해서, 값이 바뀔 때
+    // 매번 새로 그리지 않고 CSS transition으로 부드럽게 오르내리게 한다.
+    if(area.dataset.mode!=='mood'){ area.innerHTML='<div class="mood-graph-area"></div>'; area.dataset.mode='mood'; }
+    const students = DB.students[cid]||[];
+    if(students.length===0){
+      area.innerHTML = '<div style="color:var(--text-dim2);text-align:center;padding-top:20%;">등록된 학생이 없어요</div>';
+      return;
+    }
+    let wrap = area.querySelector('.mood-graph-area');
+    if(!wrap){ area.innerHTML = '<div class="mood-graph-area"></div>'; wrap = area.querySelector('.mood-graph-area'); }
+    const dateStr = formatDateYMD(new Date());
+    const day = MoodModule.getDay(cid, dateStr);
+    students.forEach(s=>{
+      let col = wrap.querySelector(`[data-sid="${s.id}"]`);
+      if(!col){
+        col = document.createElement('div');
+        col.className = 'mood-graph-col';
+        col.dataset.sid = s.id;
+        col.innerHTML = `
+          <div class="mood-graph-pair">
+            <div class="mood-graph-slot">
+              <div class="mood-graph-slot-label">전</div>
+              <div class="thermo thermo-lg"></div>
+              <div class="mood-graph-value num"></div>
+            </div>
+            <div class="mood-graph-slot">
+              <div class="mood-graph-slot-label">후</div>
+              <div class="thermo thermo-lg"></div>
+              <div class="mood-graph-value num"></div>
+            </div>
+          </div>
+          <div class="mood-graph-name">${s.name}</div>`;
+        wrap.appendChild(col);
+      }
+      const rec = day[s.id] || {before:null, after:null};
+      const slots = col.querySelectorAll('.mood-graph-slot');
+      renderThermometer(slots[0].querySelector('.thermo'), rec.before);
+      slots[0].querySelector('.mood-graph-value').textContent = rec.before===null ? '-' : rec.before;
+      renderThermometer(slots[1].querySelector('.thermo'), rec.after);
+      slots[1].querySelector('.mood-graph-value').textContent = rec.after===null ? '-' : rec.after;
+    });
+    Array.from(wrap.children).forEach(col=>{
+      if(col.dataset.sid && !students.find(s=>s.id===col.dataset.sid)) col.remove();
+    });
   },
   burst(studentId, positive){
     const el = document.querySelector(`[data-sid="${studentId}"]`);

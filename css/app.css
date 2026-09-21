@@ -326,6 +326,21 @@
   .mood-stepper button:hover{background:var(--panel-2);}
   .mood-val{font-family:'JetBrains Mono',monospace;font-weight:800;font-size:13px;min-width:16px;text-align:center;color:var(--text);}
 
+  /* Mood graph (메인 화면 — 막대그래프처럼 학생별로 크게 늘어놓는 버전) */
+  .mood-graph-area{display:flex;gap:28px;height:100%;width:100%;overflow-x:auto;overflow-y:hidden;
+    align-items:flex-end;padding:10px 6px 16px;}
+  .mood-graph-col{display:flex;flex-direction:column;align-items:center;gap:10px;flex-shrink:0;
+    height:100%;justify-content:flex-end;min-width:110px;}
+  .mood-graph-pair{display:flex;gap:14px;align-items:flex-end;flex:1;min-height:0;}
+  .mood-graph-slot{display:flex;flex-direction:column;align-items:center;gap:8px;height:100%;justify-content:flex-end;}
+  .mood-graph-slot-label{font-size:11px;color:var(--text-dim2);font-weight:800;letter-spacing:.04em;}
+  .thermo-lg{width:46px;flex:1;min-height:0;}
+  .thermo-lg .thermo-tube{width:28px;bottom:28px;height:calc(100% - 28px);border-radius:14px;border-width:3px;}
+  .thermo-lg .thermo-bulb{width:44px;height:44px;border-width:3px;}
+  .mood-graph-value{font-size:15px;}
+  .mood-graph-name{font-family:'Black Han Sans',sans-serif;font-size:14px;color:var(--text-dim);
+    text-align:center;white-space:nowrap;}
+
   /* Ladder */
   #ladderModal .modal{max-width:640px;}
   #ladderCanvas{width:100%;touch-action:none;}
