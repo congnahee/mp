@@ -140,7 +140,10 @@
     border:2px solid var(--panel-border);cursor:pointer;font-weight:700;font-size:13px;
     display:flex;flex-direction:column;align-items:center;min-width:64px;transition:.15s;}
   .stu-chip .s{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-dim);}
-  .stu-chip.selected{border-color:var(--blue);background:var(--panel-2);}
+  .stu-chip.selected{border-color:var(--blue);background:var(--blue);color:#fff;
+    box-shadow:0 0 0 2px rgba(255,255,255,.55),0 0 18px rgba(70,115,255,.55);}
+  .stu-chip.selected .s{color:#fff;}
+  .stu-chip:focus-visible{outline:3px solid var(--gain);outline-offset:2px;}
   .stu-chip.add{border-style:dashed;border-color:var(--gain);justify-content:center;color:var(--gain);font-size:18px;font-weight:800;min-width:48px;}
   .stu-chip.add:hover{background:var(--panel-2);}
   .action-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
@@ -194,21 +197,12 @@
     font-size:clamp(20px,5.5vw,38px);}
   .winner-gift{margin-top:20px;color:rgba(255,255,255,.92);font-size:clamp(14px,3.5vw,19px);font-weight:700;}
 
-  /* 점수 브러시: 값을 먼저 고르면, 이후 학생/팀 칩을 탭하는 즉시 그 값이 채점된다 */
+  /* 선택한 학생/팀에 점수를 바로 주는 단축 버튼 */
   .brush-row{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;}
   .brush-row button{flex-shrink:0;padding:8px 12px;border-radius:10px;border:1px solid var(--panel-border);
     background:var(--panel);color:var(--text-dim);font-weight:800;font-size:13px;cursor:pointer;
     font-family:'JetBrains Mono',monospace;}
-  .brush-row button.active{background:var(--gain);color:#0A0820;border-color:var(--gain);
-    box-shadow:0 0 14px var(--gain-glow);}
-  .brush-row button.active[data-v^="-"]{background:var(--loss);border-color:var(--loss);box-shadow:0 0 14px var(--loss-glow);}
-  .brush-row button.off{color:var(--text-dim2);border-style:dashed;display:none;}
-  .brush-row.armed button.off{display:block;}
-
-  /* 스와이프 채점: 학생/팀 칩을 오른쪽으로 밀면 정답, 왼쪽으로 밀면 오답 */
-  .stu-chip{touch-action:pan-y;}
-  .stu-chip.swiping{transition:none;}
-  .stu-chip.swipe-snap{transition:transform .2s, background .2s, border-color .2s;}
+  .brush-row button:disabled{opacity:.4;cursor:not-allowed;}
 
   /* 순위 변동 플래시 + 1위 왕관 연출 */
   @keyframes rankFlash{0%{filter:brightness(1);}30%{filter:brightness(1.9);}100%{filter:brightness(1);}}

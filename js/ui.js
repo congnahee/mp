@@ -21,9 +21,6 @@ function render(){
     renderQuestionPanel(cid);
     GraphRenderer.render(cid);
     updateActionButtons(cid);
-    const brushVal = DB.selection[cid].brushValue;
-    $$('#brushRow button[data-v]').forEach(b=>b.classList.toggle('active', Number(b.dataset.v)===brushVal));
-    $('#brushRow').classList.toggle('armed', brushVal!==null && brushVal!==undefined);
   } else {
     $('#graphArea').innerHTML='';
     $('#modeSwitch').style.display='none';
@@ -87,70 +84,22 @@ function gradeEntity(cid, targetType, entityId, delta, note){
   ScoreEngine.apply(cid, targetType, entityId, delta, note);
   requestAnimationFrame(()=>GraphRenderer.burst(entityId, delta>=0));
 }
-let lastChipTapEntityId = null, lastChipTapAt = 0;
 let selectedStudentIds = new Set();
-function attachChipGesture(chip, cid, targetType, entityId){
-  const THRESH_TAP = 8, THRESH_SWIPE = 56, DOUBLE_TAP_MS = 500;
-  let startX=0, startY=0, dx=0, dragging=false, moved=false;
-  chip.addEventListener('pointerdown', (e)=>{
-    startX=e.clientX; startY=e.clientY; dx=0; dragging=true; moved=false;
-    chip.classList.add('swiping'); chip.classList.remove('swipe-snap');
-  });
-  chip.addEventListener('pointermove', (e)=>{
-    if(!dragging) return;
-    dx = e.clientX-startX;
-    const dy = e.clientY-startY;
-    if(Math.abs(dx) > THRESH_TAP || Math.abs(dy) > THRESH_TAP) moved=true;
-    if(Math.abs(dx) > Math.abs(dy)){
-      chip.style.transform = `translateX(${dx}px)`;
-      chip.style.borderColor = dx>18 ? 'var(--gain)' : (dx<-18 ? 'var(--loss)' : '');
-    }
-  });
-  const finish = ()=>{
-    if(!dragging) return;
-    dragging=false;
-    chip.classList.remove('swiping'); chip.classList.add('swipe-snap');
-    const finalDx = dx;
-    chip.style.transform=''; chip.style.borderColor='';
-    const cidNow = DB.activeClassId; if(!cidNow) return;
-    if(Math.abs(finalDx) >= THRESH_SWIPE){
-      const pts = currentGradingPoints(cidNow);
-      gradeEntity(cidNow, targetType, entityId, finalDx>0?pts:-pts, finalDx>0?'스와이프 정답':'스와이프 오답');
-      lastChipTapEntityId = null; lastChipTapAt = 0;
-      return;
-    }
-    if(moved){ lastChipTapEntityId = null; lastChipTapAt = 0; return; }
-    // 짧은 시간 안에 같은 대상을 두 번 탭하면 이름 바로 수정.
-    // (첫 탭 선택 후 render()가 칩을 통째로 다시 그리므로, 이 추적값은
-    //  칩 재생성에도 안 사라지도록 함수 바깥의 전역 상태로 둔다)
-    const now = Date.now();
-    const sel = DB.selection[cidNow];
-    if(sel.brushValue!==null && sel.brushValue!==undefined){
-      lastChipTapEntityId = null; lastChipTapAt = 0;
-      gradeEntity(cidNow, targetType, entityId, sel.brushValue, '브러시 채점');
-      return;
-    }
-    if(lastChipTapEntityId===entityId && now - lastChipTapAt < DOUBLE_TAP_MS){
-      lastChipTapEntityId = null; lastChipTapAt = 0;
-      const label = targetType==='team' ? '팀 이름' : '학생 이름';
-      const current = targetType==='team'
-        ? ((DB.teams[cidNow]||[]).find(t=>t.id===entityId)||{}).name
-        : ((DB.students[cidNow]||[]).find(s=>s.id===entityId)||{}).name;
-      uiPrompt(`새 ${label}을 입력하세요`, current||'', (name)=>{
-        const v=(name||'').trim(); if(!v) return;
-        if(targetType==='team') TeamModule.renameTeam(cidNow, entityId, v);
-        else RosterModule.renameStudent(cidNow, entityId, v);
-      });
-      return;
-    }
-    lastChipTapEntityId = entityId;
-    lastChipTapAt = now;
-    sel.targetType = targetType;
-    sel.targetId = entityId;
+function attachChipSelection(chip, cid, targetType, entityId){
+  chip.setAttribute('role', 'button');
+  chip.tabIndex = 0;
+  chip.setAttribute('aria-pressed', String(DB.selection[cid].targetType===targetType && DB.selection[cid].targetId===entityId));
+  const select = ()=>{
+    const cidNow = DB.activeClassId;
+    if(cidNow!==cid) return;
+    DB.selection[cid].targetType = targetType;
+    DB.selection[cid].targetId = entityId;
     render();
   };
-  chip.addEventListener('pointerup', finish);
-  chip.addEventListener('pointercancel', finish);
+  chip.addEventListener('click', select);
+  chip.addEventListener('keydown', e=>{
+    if(e.key==='Enter' || e.key===' '){ e.preventDefault(); select(); }
+  });
 }
 function renderTargetStrip(cid){
   const strip = $('#studentStrip'); strip.innerHTML='';
@@ -162,7 +111,7 @@ function renderTargetStrip(cid){
       const chip=document.createElement('div');
       chip.className='stu-chip'+(sel.targetId===t.id?' selected':'');
       chip.innerHTML = `<div>👥 ${t.name}</div><div class="s num">${scoresById.get(t.id)??0}</div>`;
-      attachChipGesture(chip, cid, 'team', t.id);
+      attachChipSelection(chip, cid, 'team', t.id);
       strip.appendChild(chip);
     });
     const addChip = document.createElement('div');
@@ -182,7 +131,7 @@ function renderTargetStrip(cid){
       const chip=document.createElement('div');
       chip.className='stu-chip'+(sel.targetType==='student' && sel.targetId===s.id?' selected':'');
       chip.innerHTML = `<div>${s.name}</div><div class="s num">${scores[s.id]||0}</div>`;
-      attachChipGesture(chip, cid, 'student', s.id);
+      attachChipSelection(chip, cid, 'student', s.id);
       strip.appendChild(chip);
     });
     const addChip = document.createElement('div');
@@ -225,6 +174,7 @@ function updateActionButtons(cid){
     : (DB.students[cid]||[]).some(s=>s.id===sel.targetId);
   $('#btnCorrect').disabled = !has;
   $('#btnWrong').disabled = !has;
+  $$('#brushRow button[data-v]').forEach(b=>{ b.disabled = !has; });
   const q = QuizModule.liveQuiz(cid);
   const stepperVisible = !(q && q.mode==='B');
   $('#pointStepper').style.display = stepperVisible ? 'flex' : 'none';
@@ -347,13 +297,9 @@ function stopFireworks(){
 $('#brushRow').addEventListener('click', (e)=>{
   const cid = DB.activeClassId; if(!cid) return;
   const sel = DB.selection[cid];
-  const offBtn = e.target.closest('#brushOffBtn');
-  if(offBtn){ sel.brushValue = null; render(); return; }
   const b = e.target.closest('button[data-v]'); if(!b) return;
-  const v = Number(b.dataset.v);
-  sel.brushValue = v;
-  sel.points = Math.abs(v);
-  render();
+  if(!sel.targetId || b.disabled) return;
+  gradeEntity(cid, sel.targetType, sel.targetId, Number(b.dataset.v), '즉석채점');
 });
 $('#modeSwitch').addEventListener('click', e=>{
   const b = e.target.closest('.icon-btn'); if(!b) return;
