@@ -352,8 +352,10 @@
     justify-content:flex-end;flex:1 1 0;min-width:0;}
   .mood-graph-slot-label{font-size:10px;color:var(--text-dim2);font-weight:800;letter-spacing:.04em;white-space:nowrap;}
   .thermo-lg{width:100%;flex:1;min-height:44px;}
-  .thermo-lg .thermo-tube{width:48%;bottom:24%;height:76%;border-radius:8px 8px 3px 3px;border-width:2px;}
-  .thermo-lg .thermo-bulb{width:78%;height:auto;aspect-ratio:1/1;border-width:2px;box-shadow:0 0 0 3px var(--bg-2);}
+  .thermo-lg .thermo-tube{width:clamp(14px,3.2vw,26px);bottom:clamp(12px,2.4vw,24px);
+    height:calc(100% - clamp(12px,2.4vw,24px));border-radius:8px 8px 3px 3px;border-width:2px;}
+  .thermo-lg .thermo-bulb{width:clamp(18px,3.6vw,32px);height:clamp(18px,3.6vw,32px);
+    border-width:2px;box-shadow:0 0 0 3px var(--bg-2);}
   .mood-graph-value{font-size:12px;}
   .mood-graph-stepper{display:flex;gap:4px;}
   .mood-graph-stepper button{width:20px;height:20px;border-radius:6px;border:1px solid var(--panel-border);
