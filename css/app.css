@@ -37,7 +37,10 @@
     font-family:'Noto Sans KR',sans-serif;overflow:hidden;}
   .num{font-family:'JetBrains Mono',monospace;font-weight:700;}
   .display{font-family:'Black Han Sans',sans-serif;letter-spacing:0.5px;}
-  #app{display:flex;flex-direction:column;height:100vh;background:
+  #app{display:flex;flex-direction:column;height:100vh;
+    padding-top:env(safe-area-inset-top, 0px);
+    padding-bottom:env(safe-area-inset-bottom, 0px);
+    background:
       radial-gradient(circle at 15% 0%, rgba(91,140,255,0.10), transparent 45%),
       radial-gradient(circle at 85% 100%, rgba(0,224,164,0.08), transparent 45%),
       var(--bg);}
@@ -366,7 +369,8 @@
     text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%;}
 
   /* Ladder */
-  [data-ladder="canvas"]{width:100%;touch-action:none;max-width:100%;}
+  [data-ladder="canvas"]{width:100%;touch-action:none;max-width:960px;max-height:56vh;height:auto;
+    display:block;margin:0 auto;}
   .gift-reveal{text-align:center;padding:20px;}
   .gift-reveal .display{font-size:26px;color:var(--gold);margin-bottom:6px;}
 

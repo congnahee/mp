@@ -238,7 +238,30 @@ $('#graphSwitch').addEventListener('click', e=>{
 });
 $('#emptyAddClass').onclick=()=>openModal('#modalSettings');
 $('#btnSettings').onclick=()=>openModal('#modalSettings');
+/* ---- 전체화면 (PC/맥의 사파리·크롬 등 데스크탑 브라우저에서만 지원됨.
+   아이패드/아이폰은 iOS 자체가 이 기능을 막아놔서 버튼을 아예 숨긴다.) ---- */
+if(document.fullscreenEnabled){
+  const fsBtn = $('#btnFullscreen');
+  fsBtn.style.display = 'flex';
+  fsBtn.onclick = ()=>{
+    if(!document.fullscreenElement){
+      document.documentElement.requestFullscreen().catch(()=>{});
+    } else {
+      document.exitFullscreen();
+    }
+  };
+  document.addEventListener('fullscreenchange', ()=>{
+    fsBtn.classList.toggle('on', !!document.fullscreenElement);
+    fsBtn.title = document.fullscreenElement ? '전체화면 나가기' : '전체화면';
+  });
+}
 $('#btnHistory').onclick=()=>{ renderHistoryModal(); openModal('#modalHistory'); };
+$('#btnResetScores').onclick=()=>{
+  const cid = DB.activeClassId; if(!cid){ uiAlert('먼저 반을 선택하세요'); return; }
+  const p = (DB.periods[cid]||[]).find(pp=>pp.status==='active');
+  if(!p){ uiAlert('진행 중인 기간이 없어요.'); return; }
+  uiConfirm(`'${p.label}' 기간의 점수와 채점 이력을 모두 초기화할까요? 되돌릴 수 없어요.`, ()=>PeriodManager.resetActive(cid));
+};
 $('#gift-fab').onclick=()=>{
   const cid = DB.activeClassId; if(!cid) return;
   DB.graphType[cid] = 'ladder';

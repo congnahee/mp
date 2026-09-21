@@ -2,8 +2,15 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>포인트 아레나</title>
+<!-- 사파리에서 "홈 화면에 추가"로 실행하면, 이 설정들 덕분에 주소창/탭바 없이
+     전체화면 앱처럼 뜬다. (Fullscreen API는 iOS에서 아예 막혀있어서, 이 방식이 유일한 대안이다.) -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="포인트 아레나">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0A0820">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;500;700;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/app.css">
@@ -32,6 +39,8 @@
     </div>
     <button class="icon-btn" id="btnHistory" title="채점 이력">🕓</button>
     <button class="icon-btn" id="btnMood" title="기분 온도계">🌡</button>
+    <button class="icon-btn" id="btnResetScores" title="현재 기간 점수 초기화">🔄</button>
+    <button class="icon-btn" id="btnFullscreen" title="전체화면" style="display:none;">⛶</button>
     <button class="icon-btn" id="btnSettings" title="설정">⚙</button>
   </header>
 

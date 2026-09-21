@@ -64,6 +64,13 @@ const GraphRenderer = {
       // 숫자 라벨에는 실제 값(-10 등)을 그대로 보여준다.
       const heightPx = clamp(Math.max(r.score,0)/maxAbs * (zoneH*0.85), 4, zoneH);
       const prevScore = fill.dataset.score;
+      if(isNew){
+        // 방금 생긴 막대는 "이전 상태"가 없어서 CSS transition이 못 타고 바로
+        // 완성된 크기로 그려진다. 최소 높이로 한 번 찍고 강제로 리플로우를
+        // 시킨 뒤 실제 높이로 바꿔서, 처음 등장해도 자라나는 모션이 보이게 한다.
+        fill.style.height = '4px';
+        void fill.offsetHeight;
+      }
       fill.style.height = heightPx+'px';
       fill.dataset.score = r.score;
       if(r.color){
@@ -123,6 +130,10 @@ const GraphRenderer = {
       // 음수 점수는 트랙을 거의 바닥(최소 너비)으로 표시하고, 숫자는 실제 값을 그대로 보여준다.
       const pct = clamp(Math.max(r.score,0)/maxAbs, 0.03, 1);
       const prevScore = fillEl.dataset.score;
+      if(isNew){
+        fillEl.style.width = (trackW*0.03)+'px';
+        void fillEl.offsetWidth;
+      }
       fillEl.style.width = (trackW*pct)+'px';
       fillEl.dataset.score=r.score;
       if(r.color){

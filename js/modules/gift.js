@@ -35,30 +35,44 @@ const GiftSetModule = {
 const GiftLadder = {
   state: null,
   container: null,
+  useTeam: false,
   // container: 이 사다리를 그릴 대상 DOM 엘리먼트 (메인 그래프 영역이 넘어온다)
   mount(container, cid){
     if(!container || !cid) return;
-    const useTeam = !!(DB.teamsEnabled[cid] && DB.viewMode[cid]==='team');
+    ensureClassData(cid);
+    const teamsAvailable = !!(DB.teamsEnabled[cid] && (DB.teams[cid]||[]).length>0);
+    const useTeam = teamsAvailable && GiftLadder.useTeam;
     const ranked = useTeam ? RankingModule.computeTeams(cid) : RankingModule.computeStudents(cid);
     if(ranked.length<2){
       container.innerHTML = `<div style="color:var(--text-dim2);text-align:center;padding-top:20%;">${useTeam?'팀이':'학생이'} 2명 이상 있어야 사다리를 탈 수 있어요.</div>`;
       return;
     }
-    ensureClassData(cid);
     const sets = DB.giftSets[cid]||[];
     const activeId = DB.activeGiftSetId[cid];
     const active = sets.find(s=>s.id===activeId) || sets[0];
     const lanes = ranked.length;
     GiftLadder.container = container;
     GiftLadder.state = {lanes, ranked, gifts: (active&&active.gifts)||{}};
-    container.innerHTML = `<div class="hint">${useTeam?'팀':'학생'} 랭킹 기준으로 진행해요 (상단 🙋/👥 버튼으로 기준 전환). 등수 순서대로 사다리를 타고 내려가면 선물이 나와요.</div>
+    container.innerHTML = `
+      ${teamsAvailable ? `<div class="chip-tabs" data-ladder="basisToggle">
+        <button type="button" data-basis="student" class="${!useTeam?'active':''}">🙋 학생별</button>
+        <button type="button" data-basis="team" class="${useTeam?'active':''}">👥 팀별</button>
+      </div>` : ''}
+      <div class="hint">${useTeam?'팀':'학생'} 랭킹 기준으로 진행해요. 등수 순서대로 사다리를 타고 내려가면 선물이 나와요.</div>
       <div class="chip-tabs" data-ladder="giftSetTabs">
         ${sets.map(s=>`<button type="button" data-set-id="${s.id}" class="${s.id===activeId?'active':''}">${s.name}</button>`).join('')}
       </div>
-      <svg data-ladder="canvas" viewBox="0 0 ${lanes*80} 460" style="background:var(--bg-2);border-radius:14px;max-width:960px;width:100%;display:block;margin:0 auto;"></svg>
+      <svg data-ladder="canvas" viewBox="0 0 ${lanes*80} 460" style="background:var(--bg-2);border-radius:14px;"></svg>
       <button class="ghost-btn" data-ladder="reshuffle" style="width:100%;max-width:960px;margin:10px auto 0;display:block;">🔀 사다리 다시 섞기</button>
       <div data-ladder="picks" style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;justify-content:center;"></div>
       <div data-ladder="result"></div>`;
+    if(teamsAvailable){
+      container.querySelector('[data-ladder="basisToggle"]').addEventListener('click', (e)=>{
+        const b = e.target.closest('button'); if(!b) return;
+        GiftLadder.useTeam = b.dataset.basis==='team';
+        GiftLadder.mount(container, cid);
+      });
+    }
     container.querySelector('[data-ladder="reshuffle"]').onclick=()=>GiftLadder.reshuffle();
     container.querySelector('[data-ladder="giftSetTabs"]').addEventListener('click', (e)=>{
       const b = e.target.closest('button'); if(!b) return;
