@@ -60,6 +60,10 @@
     background:var(--panel);border:1px solid var(--panel-border);font-size:12px;color:var(--text-dim);
     white-space:nowrap;flex-shrink:0;}
   .period-chip b{color:var(--text);font-size:13px;}
+  .class-info-chip{display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:20px;
+    background:var(--panel);border:1px solid var(--panel-border);font-size:11px;color:var(--text-dim2);
+    white-space:nowrap;flex-shrink:0;}
+  .class-info-chip b{color:var(--text-dim);font-family:'JetBrains Mono',monospace;font-weight:800;}
   .icon-btn{width:34px;height:34px;border-radius:10px;background:var(--panel);
     border:1px solid var(--panel-border);color:var(--text-dim);display:flex;align-items:center;
     justify-content:center;cursor:pointer;font-size:16px;transition:.15s;flex-shrink:0;}
@@ -69,7 +73,7 @@
     border:1px solid var(--panel-border);flex-shrink:0;}
 
   /* ===== MAIN STAGE ===== */
-  #stage{flex:1;position:relative;overflow-y:auto;overflow-x:hidden;padding:18px 22px 6px;}
+  #stage{flex:1;position:relative;overflow-y:auto;overflow-x:hidden;padding:18px 92px 6px 22px;}
   #emptyState{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
     justify-content:center;color:var(--text-dim2);gap:10px;text-align:center;padding:20px;}
   #emptyState .display{font-size:22px;color:var(--text-dim);}
@@ -327,8 +331,11 @@
   .mood-val{font-family:'JetBrains Mono',monospace;font-weight:800;font-size:13px;min-width:16px;text-align:center;color:var(--text);}
 
   /* Mood graph (메인 화면 — 막대그래프처럼 학생별로 크게 늘어놓는 버전) */
-  .mood-graph-area{display:flex;gap:28px;height:100%;width:100%;overflow-x:auto;overflow-y:hidden;
-    align-items:flex-end;padding:10px 6px 16px;}
+  .mood-graph-wrap{display:flex;flex-direction:column;height:100%;width:100%;}
+  .mood-graph-datebar{display:flex;justify-content:flex-end;padding:0 4px 10px;flex-shrink:0;}
+  .mood-graph-datebar .date-field{flex:0 0 auto;}
+  .mood-graph-area{display:flex;gap:28px;flex:1;min-height:0;width:100%;overflow-x:auto;overflow-y:hidden;
+    align-items:flex-end;justify-content:safe center;padding:10px 6px 16px;}
   .mood-graph-col{display:flex;flex-direction:column;align-items:center;gap:10px;flex-shrink:0;
     height:100%;justify-content:flex-end;min-width:110px;}
   .mood-graph-pair{display:flex;gap:14px;align-items:flex-end;flex:1;min-height:0;}
@@ -355,6 +362,7 @@
      좁은 화면에서 헤더·칩 간격도 살짝 줄여 한눈에 더 많이 들어오게 한다. */
   @media (max-width: 480px){
     header{padding:8px 10px;gap:6px;}
+    #stage{padding:18px 72px 6px 14px;}
     .brand{font-size:16px;}
     .brand-logo{height:20px;}
     .icon-btn{width:40px;height:40px;font-size:17px;}

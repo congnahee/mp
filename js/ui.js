@@ -7,6 +7,7 @@ function persistAndRender(){ scheduleSave(); render(); }
 function render(){
   const cid = DB.activeClassId;
   renderClassTabs();
+  renderClassInfoChip(cid);
   if(!cid || (DB.students[cid]||[]).length===0){
     $('#emptyState').style.display='flex';
   } else {
@@ -28,6 +29,19 @@ function render(){
     $('#modeSwitch').style.display='none';
   }
   renderSettingsLists();
+}
+function renderClassInfoChip(cid){
+  const chip = $('#classInfoChip');
+  if(!chip) return;
+  if(!cid){ chip.style.display='none'; return; }
+  const studentCount = (DB.students[cid]||[]).length;
+  let html = `인원 <b>${studentCount}</b>명`;
+  if(DB.teamsEnabled[cid]){
+    const teamCount = (DB.teams[cid]||[]).length;
+    html += ` · 팀 <b>${teamCount}</b>개`;
+  }
+  chip.innerHTML = html;
+  chip.style.display = 'flex';
 }
 
 function renderClassTabs(){
@@ -74,8 +88,8 @@ function gradeEntity(cid, targetType, entityId, delta, note){
   requestAnimationFrame(()=>GraphRenderer.burst(entityId, delta>=0));
 }
 function attachChipGesture(chip, cid, targetType, entityId){
-  const THRESH_TAP = 8, THRESH_SWIPE = 56;
-  let startX=0, startY=0, dx=0, dragging=false, moved=false;
+  const THRESH_TAP = 8, THRESH_SWIPE = 56, DOUBLE_TAP_MS = 350;
+  let startX=0, startY=0, dx=0, dragging=false, moved=false, lastTapAt=0;
   chip.addEventListener('pointerdown', (e)=>{
     startX=e.clientX; startY=e.clientY; dx=0; dragging=true; moved=false;
     chip.classList.add('swiping'); chip.classList.remove('swipe-snap');
@@ -100,15 +114,33 @@ function attachChipGesture(chip, cid, targetType, entityId){
     if(Math.abs(finalDx) >= THRESH_SWIPE){
       const pts = currentGradingPoints(cidNow);
       gradeEntity(cidNow, targetType, entityId, finalDx>0?pts:-pts, finalDx>0?'스와이프 정답':'스와이프 오답');
-    } else if(!moved){
-      const sel = DB.selection[cidNow];
-      if(sel.brushValue!==null && sel.brushValue!==undefined){
-        gradeEntity(cidNow, targetType, entityId, sel.brushValue, '브러시 채점');
-      } else {
-        sel.targetType = targetType;
-        sel.targetId = entityId;
-        render();
-      }
+      lastTapAt = 0;
+      return;
+    }
+    if(moved){ lastTapAt = 0; return; }
+    // 짧은 시간 안에 두 번 탭하면 이름 바로 수정
+    const now = Date.now();
+    if(now - lastTapAt < DOUBLE_TAP_MS){
+      lastTapAt = 0;
+      const label = targetType==='team' ? '팀 이름' : '학생 이름';
+      const current = targetType==='team'
+        ? ((DB.teams[cidNow]||[]).find(t=>t.id===entityId)||{}).name
+        : ((DB.students[cidNow]||[]).find(s=>s.id===entityId)||{}).name;
+      uiPrompt(`새 ${label}을 입력하세요`, current||'', (name)=>{
+        const v=(name||'').trim(); if(!v) return;
+        if(targetType==='team') TeamModule.renameTeam(cidNow, entityId, v);
+        else RosterModule.renameStudent(cidNow, entityId, v);
+      });
+      return;
+    }
+    lastTapAt = now;
+    const sel = DB.selection[cidNow];
+    if(sel.brushValue!==null && sel.brushValue!==undefined){
+      gradeEntity(cidNow, targetType, entityId, sel.brushValue, '브러시 채점');
+    } else {
+      sel.targetType = targetType;
+      sel.targetId = entityId;
+      render();
     }
   };
   chip.addEventListener('pointerup', finish);
@@ -368,6 +400,11 @@ document.addEventListener('click', e=>{
     const label = document.getElementById(targetId+'_label');
     if(label){ label.textContent = formatDateDisplay(val); label.classList.toggle('ph', !val); }
     if(targetId==='moodDate') renderMoodList();
+    if(targetId==='moodGraphDate'){
+      GraphRenderer.moodDate = val || formatDateYMD(new Date());
+      const cid = DB.activeClassId;
+      if(cid) GraphRenderer.render(cid);
+    }
   });
 });
 

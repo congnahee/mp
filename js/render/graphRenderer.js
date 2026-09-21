@@ -227,15 +227,21 @@ const GraphRenderer = {
   mood(area, cid){
     // bar()/race()와 같은 방식으로 기존 DOM을 재사용해서, 값이 바뀔 때
     // 매번 새로 그리지 않고 CSS transition으로 부드럽게 오르내리게 한다.
-    if(area.dataset.mode!=='mood'){ area.innerHTML='<div class="mood-graph-area"></div>'; area.dataset.mode='mood'; }
+    if(!GraphRenderer.moodDate) GraphRenderer.moodDate = formatDateYMD(new Date());
+    if(area.dataset.mode!=='mood'){
+      area.innerHTML = `<div class="mood-graph-wrap">
+        <div class="mood-graph-datebar">${dateFieldHTML('moodGraphDate', GraphRenderer.moodDate)}</div>
+        <div class="mood-graph-area"></div>
+      </div>`;
+      area.dataset.mode='mood';
+    }
     const students = DB.students[cid]||[];
+    const wrap = area.querySelector('.mood-graph-area');
     if(students.length===0){
-      area.innerHTML = '<div style="color:var(--text-dim2);text-align:center;padding-top:20%;">등록된 학생이 없어요</div>';
+      wrap.innerHTML = '<div style="color:var(--text-dim2);text-align:center;padding-top:20%;">등록된 학생이 없어요</div>';
       return;
     }
-    let wrap = area.querySelector('.mood-graph-area');
-    if(!wrap){ area.innerHTML = '<div class="mood-graph-area"></div>'; wrap = area.querySelector('.mood-graph-area'); }
-    const dateStr = formatDateYMD(new Date());
+    const dateStr = GraphRenderer.moodDate;
     const day = MoodModule.getDay(cid, dateStr);
     students.forEach(s=>{
       let col = wrap.querySelector(`[data-sid="${s.id}"]`);
