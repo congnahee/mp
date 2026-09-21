@@ -86,6 +86,7 @@ const CloudSync = {
         try{
           const payload = JSON.parse(ev.data);
           if(!payload || !payload.data || !payload.data.classes) return;
+          if(!shouldApplyRemote(payload.data)) return;
           this.applyingRemote = true;
           DB = payload.data;
           DB.classes.forEach(c=>ensureClassData(c.id));
@@ -166,7 +167,7 @@ const ServerSync = {
         const res = await fetch(this.path());
         if(!res.ok) return;
         const json = await res.json();
-        if(json.data && JSON.stringify(json.data) !== JSON.stringify(DB)){
+        if(json.data && shouldApplyRemote(json.data) && JSON.stringify(json.data) !== JSON.stringify(DB)){
           this.applyingRemote = true;
           DB = json.data;
           DB.classes.forEach(c=>ensureClassData(c.id));
@@ -184,7 +185,16 @@ const ServerSync = {
 };
 
 let saveTimer=null, saveInFlight=false, savePending=false;
+function shouldApplyRemote(remote){
+  // A poll or delayed echo from our own upload must not undo points that are
+  // waiting to be saved, or replace them with an older server snapshot.
+  if(savePending || saveInFlight) return false;
+  const localTime = Number(DB._updatedAt) || 0;
+  const remoteTime = Number(remote._updatedAt) || 0;
+  return !localTime || remoteTime > localTime;
+}
 function scheduleSave(){
+  DB._updatedAt = Math.max(Date.now(), (Number(DB._updatedAt)||0) + 1);
   savePending = true;
   clearTimeout(saveTimer);
   saveTimer = setTimeout(flushSave, 700);
@@ -223,12 +233,10 @@ async function flushSave(){
   savePending = false;
   await saveLocalCache();
   // 원격에서 방금 받은 데이터를 그대로 되돌려 올리지 않도록 방지
-  if(CloudSync.connected && !CloudSync.applyingRemote){
-    CloudSync.push(DB);
-  }
-  if(ServerSync.connected && !ServerSync.applyingRemote){
-    ServerSync.push(DB);
-  }
+  const pushes = [];
+  if(CloudSync.connected && !CloudSync.applyingRemote) pushes.push(CloudSync.push(DB));
+  if(ServerSync.connected && !ServerSync.applyingRemote) pushes.push(ServerSync.push(DB));
+  await Promise.all(pushes);
   saveInFlight = false;
   if(savePending) scheduleSave();
 }

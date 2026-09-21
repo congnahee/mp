@@ -10,13 +10,6 @@ const GraphRenderer = {
     const viewMode = (DB.teamsEnabled[cid] && DB.viewMode[cid]==='team') ? 'team' : 'student';
     let ranked = RankingModule.current(cid);
     if(viewMode==='team') ranked = ranked.map(r=>({...r, name:'👥 '+r.name}));
-    // Keep chart columns in their registration order while rank labels still
-    // reflect the live score. Reordering on every point makes all bars move.
-    if(type==='bar' || type==='race'){
-      const roster = viewMode==='team' ? DB.teams[cid]||[] : DB.students[cid]||[];
-      const order = new Map(roster.map((entry, i)=>[entry.id, i]));
-      ranked.sort((a,b)=>(order.get(a.id)??Infinity)-(order.get(b.id)??Infinity));
-    }
     // 순위 변동 감지: 지난 렌더 대비 등수가 바뀐 항목엔 플래시를, 새로 1위가 된 항목엔 왕관을 띄운다
     const rankChanges = {};
     ranked.forEach(r=>{
