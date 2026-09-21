@@ -334,23 +334,27 @@
   .mood-graph-wrap{display:flex;flex-direction:column;height:100%;width:100%;}
   .mood-graph-datebar{display:flex;justify-content:flex-end;padding:0 4px 10px;flex-shrink:0;}
   .mood-graph-datebar .date-field{flex:0 0 auto;}
-  .mood-graph-area{display:flex;gap:28px;flex:1;min-height:0;width:100%;overflow-x:auto;overflow-y:hidden;
+  .mood-graph-area{display:flex;gap:10px;flex:1;min-height:0;width:100%;overflow-x:auto;overflow-y:hidden;
     align-items:flex-end;justify-content:safe center;padding:10px 6px 16px;}
-  .mood-graph-col{display:flex;flex-direction:column;align-items:center;gap:8px;flex-shrink:0;
-    height:100%;justify-content:flex-end;}
-  .mood-graph-pair{display:flex;gap:8px;align-items:flex-end;flex:1;min-height:0;width:100%;justify-content:center;}
-  .mood-graph-slot{display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end;min-width:0;}
-  .mood-graph-slot-label{font-size:10px;color:var(--text-dim2);font-weight:800;letter-spacing:.04em;}
-  .thermo-lg{width:46px;flex:1;min-height:0;}
-  .thermo-lg .thermo-tube{width:28px;bottom:28px;height:calc(100% - 28px);border-radius:14px;border-width:3px;}
-  .thermo-lg .thermo-bulb{width:44px;height:44px;border-width:3px;}
-  .mood-graph-value{font-size:13px;}
+  /* flex-shrink:0을 일부러 안 준다 — 학생이 많아지거나 창이 좁아지면
+     각 칸이 CSS 스스로 줄어들어서, 스크롤 없이도 전원이 보이게 한다.
+     min-width는 최소한의 가독성만 보장하는 바닥값이다. */
+  .mood-graph-col{display:flex;flex-direction:column;align-items:center;gap:6px;
+    flex:1 1 0;min-width:34px;max-width:150px;height:100%;justify-content:flex-end;}
+  .mood-graph-pair{display:flex;gap:6%;align-items:flex-end;flex:1;min-height:0;width:100%;justify-content:center;}
+  .mood-graph-slot{display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;
+    justify-content:flex-end;flex:1 1 0;min-width:0;}
+  .mood-graph-slot-label{font-size:10px;color:var(--text-dim2);font-weight:800;letter-spacing:.04em;white-space:nowrap;}
+  .thermo-lg{width:100%;flex:1;min-height:0;}
+  .thermo-lg .thermo-tube{width:55%;bottom:26%;height:74%;border-radius:999px;border-width:2px;}
+  .thermo-lg .thermo-bulb{width:80%;height:auto;aspect-ratio:1/1;border-width:2px;}
+  .mood-graph-value{font-size:12px;}
   .mood-graph-stepper{display:flex;gap:4px;}
-  .mood-graph-stepper button{width:22px;height:22px;border-radius:6px;border:1px solid var(--panel-border);
-    background:var(--panel);color:var(--text);font-size:13px;cursor:pointer;line-height:1;flex-shrink:0;}
+  .mood-graph-stepper button{width:20px;height:20px;border-radius:6px;border:1px solid var(--panel-border);
+    background:var(--panel);color:var(--text);font-size:12px;cursor:pointer;line-height:1;flex-shrink:0;}
   .mood-graph-stepper button:hover{background:var(--panel-2);}
   .mood-graph-stepper button:active{transform:scale(.92);}
-  .mood-graph-name{font-family:'Black Han Sans',sans-serif;font-size:13px;color:var(--text-dim);
+  .mood-graph-name{font-family:'Black Han Sans',sans-serif;font-size:12px;color:var(--text-dim);
     text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%;}
 
   /* Ladder */

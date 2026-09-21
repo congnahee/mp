@@ -243,14 +243,8 @@ const GraphRenderer = {
     }
     const dateStr = GraphRenderer.moodDate;
     const day = MoodModule.getDay(cid, dateStr);
-    // 학생 수와 실제 가용 너비에 맞춰 칸/온도계 크기를 계산 — 창을 줄여도
-    // 스크롤에 의존하지 않고 전원이 한 화면에 보이도록 자동으로 줄어든다.
-    const n = students.length;
-    const gap = 20;
-    const wrapW = wrap.clientWidth || 600;
-    const colWidth = clamp((wrapW - gap*Math.max(n-1,0)) / n, 56, 130);
-    const thermoW = clamp(colWidth*0.42, 16, 46);
-    wrap.style.gap = gap+'px';
+    // 칸 크기는 이제 JS로 픽셀을 계산하지 않고 CSS flex에 맡긴다 —
+    // 창 폭이 바뀌면 브라우저가 알아서 모든 칸을 줄여서 항상 다 보이게 한다.
     students.forEach(s=>{
       let col = wrap.querySelector(`[data-sid="${s.id}"]`);
       if(!col){
@@ -281,15 +275,11 @@ const GraphRenderer = {
           <div class="mood-graph-name">${s.name}</div>`;
         wrap.appendChild(col);
       }
-      col.style.width = colWidth+'px';
-      col.style.minWidth = colWidth+'px';
       const rec = day[s.id] || {before:null, after:null};
       const slots = col.querySelectorAll('.mood-graph-slot');
       renderThermometer(slots[0].querySelector('.thermo'), rec.before);
-      applyThermoSize(slots[0].querySelector('.thermo'), thermoW);
       slots[0].querySelector('.mood-graph-value').textContent = rec.before===null ? '-' : rec.before;
       renderThermometer(slots[1].querySelector('.thermo'), rec.after);
-      applyThermoSize(slots[1].querySelector('.thermo'), thermoW);
       slots[1].querySelector('.mood-graph-value').textContent = rec.after===null ? '-' : rec.after;
     });
     Array.from(wrap.children).forEach(col=>{
