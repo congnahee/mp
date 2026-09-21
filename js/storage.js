@@ -100,8 +100,8 @@ const CloudSync = {
 
 /* ============================================================
    SERVER SYNC — 이 프로젝트를 배포한 Vercel 서버 자체의 작은 DB
-   (Vercel KV)에 저장한다. 별도 외부 계정(Firebase 등) 없이,
-   Vercel 대시보드에서 KV 스토어 하나만 연결하면 바로 쓸 수 있다.
+   (Upstash Redis)에 저장한다. 별도 외부 계정(Firebase 등) 없이,
+   Vercel 대시보드 Storage에서 Upstash 하나만 연결하면 바로 쓸 수 있다.
    실시간 push는 아니고, 짧은 주기로 폴링해서 다른 기기의 변경을
    따라잡는다 (교실 인원 규모에서는 이 정도로 충분하다).
 ============================================================ */
@@ -139,7 +139,7 @@ const ServerSync = {
       render();
       return true;
     }catch(e){
-      uiAlert('서버 DB 연결에 실패했어요. 배포 후 Vercel에서 KV 스토어를 연결했는지 확인해주세요.\n(' + e.message + ')');
+      uiAlert('서버 DB 연결에 실패했어요. 배포 후 Vercel Storage에서 Upstash를 연결했는지 확인해주세요.\n(' + e.message + ')');
       this.connected = false;
       return false;
     }

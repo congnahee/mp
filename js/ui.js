@@ -87,9 +87,10 @@ function gradeEntity(cid, targetType, entityId, delta, note){
   ScoreEngine.apply(cid, targetType, entityId, delta, note);
   requestAnimationFrame(()=>GraphRenderer.burst(entityId, delta>=0));
 }
+let lastChipTapEntityId = null, lastChipTapAt = 0;
 function attachChipGesture(chip, cid, targetType, entityId){
-  const THRESH_TAP = 8, THRESH_SWIPE = 56, DOUBLE_TAP_MS = 350;
-  let startX=0, startY=0, dx=0, dragging=false, moved=false, lastTapAt=0;
+  const THRESH_TAP = 8, THRESH_SWIPE = 56, DOUBLE_TAP_MS = 500;
+  let startX=0, startY=0, dx=0, dragging=false, moved=false;
   chip.addEventListener('pointerdown', (e)=>{
     startX=e.clientX; startY=e.clientY; dx=0; dragging=true; moved=false;
     chip.classList.add('swiping'); chip.classList.remove('swipe-snap');
@@ -114,14 +115,16 @@ function attachChipGesture(chip, cid, targetType, entityId){
     if(Math.abs(finalDx) >= THRESH_SWIPE){
       const pts = currentGradingPoints(cidNow);
       gradeEntity(cidNow, targetType, entityId, finalDx>0?pts:-pts, finalDx>0?'스와이프 정답':'스와이프 오답');
-      lastTapAt = 0;
+      lastChipTapEntityId = null; lastChipTapAt = 0;
       return;
     }
-    if(moved){ lastTapAt = 0; return; }
-    // 짧은 시간 안에 두 번 탭하면 이름 바로 수정
+    if(moved){ lastChipTapEntityId = null; lastChipTapAt = 0; return; }
+    // 짧은 시간 안에 같은 대상을 두 번 탭하면 이름 바로 수정.
+    // (첫 탭 선택 후 render()가 칩을 통째로 다시 그리므로, 이 추적값은
+    //  칩 재생성에도 안 사라지도록 함수 바깥의 전역 상태로 둔다)
     const now = Date.now();
-    if(now - lastTapAt < DOUBLE_TAP_MS){
-      lastTapAt = 0;
+    if(lastChipTapEntityId===entityId && now - lastChipTapAt < DOUBLE_TAP_MS){
+      lastChipTapEntityId = null; lastChipTapAt = 0;
       const label = targetType==='team' ? '팀 이름' : '학생 이름';
       const current = targetType==='team'
         ? ((DB.teams[cidNow]||[]).find(t=>t.id===entityId)||{}).name
@@ -133,7 +136,8 @@ function attachChipGesture(chip, cid, targetType, entityId){
       });
       return;
     }
-    lastTapAt = now;
+    lastChipTapEntityId = entityId;
+    lastChipTapAt = now;
     const sel = DB.selection[cidNow];
     if(sel.brushValue!==null && sel.brushValue!==undefined){
       gradeEntity(cidNow, targetType, entityId, sel.brushValue, '브러시 채점');
@@ -406,6 +410,21 @@ document.addEventListener('click', e=>{
       if(cid) GraphRenderer.render(cid);
     }
   });
+});
+document.addEventListener('click', e=>{
+  const b = e.target.closest('.mood-graph-stepper button'); if(!b) return;
+  const cid = DB.activeClassId; if(!cid) return;
+  const dateStr = GraphRenderer.moodDate || formatDateYMD(new Date());
+  const sid = b.dataset.sid, timing = b.dataset.timing, dir = Number(b.dataset.dir);
+  const cur = MoodModule.getScore(cid, dateStr, sid, timing);
+  const next = clamp((cur===null?0:cur)+dir, 0, 10);
+  MoodModule.setScore(cid, dateStr, sid, timing, next);
+  const col = b.closest('.mood-graph-col');
+  const slotIdx = timing==='before' ? 0 : 1;
+  const slot = col.querySelectorAll('.mood-graph-slot')[slotIdx];
+  renderThermometer(slot.querySelector('.thermo'), next);
+  slot.querySelector('.mood-graph-value').textContent = next;
+  flashSaveStatus();
 });
 
 /* ---- settings modal ---- */
@@ -932,7 +951,7 @@ $('#saveGiftsBtn').onclick=()=>{
   savedHint._t = setTimeout(()=>{ savedHint.style.display='none'; }, 1500);
 };
 
-/* ---- server db tab (Vercel KV) ---- */
+/* ---- server db tab (Vercel Storage / Upstash) ---- */
 function renderServerTab(){
   $('#serverKey').value = ServerSync.key;
   updateServerStatus();

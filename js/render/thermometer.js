@@ -26,3 +26,20 @@ function renderThermometer(container, value){
   fill.style.background = color;
   bulb.style.background = color;
 }
+// 메인 그래프(온도계 타입)에서 학생 수/화면 폭에 맞춰 온도계 자체의 굵기를 조절할 때 사용
+function applyThermoSize(container, widthPx){
+  if(!container) return;
+  container.style.width = widthPx + 'px';
+  const tube = container.querySelector('.thermo-tube');
+  const bulb = container.querySelector('.thermo-bulb');
+  if(tube){
+    const tubeW = Math.round(widthPx*0.6);
+    tube.style.width = tubeW + 'px';
+    tube.style.bottom = Math.round(widthPx*0.75) + 'px';
+    tube.style.height = `calc(100% - ${Math.round(widthPx*0.75)}px)`;
+  }
+  if(bulb){
+    bulb.style.width = widthPx + 'px';
+    bulb.style.height = widthPx + 'px';
+  }
+}
