@@ -96,8 +96,8 @@
     text-align:center;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%;}
   .bar-rank{position:absolute;top:-22px;left:50%;transform:translateX(-50%);font-size:11px;
     color:var(--text-dim2);font-weight:700;}
-  .bump{animation:bump .45s cubic-bezier(.3,1.4,.4,1);}
-  @keyframes bump{0%{transform:scale(1)}35%{transform:scale(1.14)}100%{transform:scale(1)}}
+  .bump{animation:bump .45s ease-out;}
+  @keyframes bump{0%,100%{filter:brightness(1)}35%{filter:brightness(1.35)}}
   .shake{animation:shakeAnim .45s;}
   @keyframes shakeAnim{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}
     40%{transform:translateX(5px)}60%{transform:translateX(-4px)}80%{transform:translateX(3px)}}

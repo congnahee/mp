@@ -124,6 +124,12 @@ function attachChipGesture(chip, cid, targetType, entityId){
     // (첫 탭 선택 후 render()가 칩을 통째로 다시 그리므로, 이 추적값은
     //  칩 재생성에도 안 사라지도록 함수 바깥의 전역 상태로 둔다)
     const now = Date.now();
+    const sel = DB.selection[cidNow];
+    if(sel.brushValue!==null && sel.brushValue!==undefined){
+      lastChipTapEntityId = null; lastChipTapAt = 0;
+      gradeEntity(cidNow, targetType, entityId, sel.brushValue, '브러시 채점');
+      return;
+    }
     if(lastChipTapEntityId===entityId && now - lastChipTapAt < DOUBLE_TAP_MS){
       lastChipTapEntityId = null; lastChipTapAt = 0;
       const label = targetType==='team' ? '팀 이름' : '학생 이름';
@@ -139,14 +145,9 @@ function attachChipGesture(chip, cid, targetType, entityId){
     }
     lastChipTapEntityId = entityId;
     lastChipTapAt = now;
-    const sel = DB.selection[cidNow];
-    if(sel.brushValue!==null && sel.brushValue!==undefined){
-      gradeEntity(cidNow, targetType, entityId, sel.brushValue, '브러시 채점');
-    } else {
-      sel.targetType = targetType;
-      sel.targetId = entityId;
-      render();
-    }
+    sel.targetType = targetType;
+    sel.targetId = entityId;
+    render();
   };
   chip.addEventListener('pointerup', finish);
   chip.addEventListener('pointercancel', finish);
@@ -155,11 +156,12 @@ function renderTargetStrip(cid){
   const strip = $('#studentStrip'); strip.innerHTML='';
   const sel = DB.selection[cid];
   if(sel.targetType==='team' && DB.teamsEnabled[cid]){
-    const teams = RankingModule.computeTeams(cid);
+    const scoresById = new Map(RankingModule.computeTeams(cid).map(t=>[t.id,t.score]));
+    const teams = DB.teams[cid]||[];
     teams.forEach(t=>{
       const chip=document.createElement('div');
       chip.className='stu-chip'+(sel.targetId===t.id?' selected':'');
-      chip.innerHTML = `<div>👥 ${t.name}</div><div class="s num">${t.score}</div>`;
+      chip.innerHTML = `<div>👥 ${t.name}</div><div class="s num">${scoresById.get(t.id)??0}</div>`;
       attachChipGesture(chip, cid, 'team', t.id);
       strip.appendChild(chip);
     });

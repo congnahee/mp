@@ -10,6 +10,13 @@ const GraphRenderer = {
     const viewMode = (DB.teamsEnabled[cid] && DB.viewMode[cid]==='team') ? 'team' : 'student';
     let ranked = RankingModule.current(cid);
     if(viewMode==='team') ranked = ranked.map(r=>({...r, name:'👥 '+r.name}));
+    // Keep chart columns in their registration order while rank labels still
+    // reflect the live score. Reordering on every point makes all bars move.
+    if(type==='bar' || type==='race'){
+      const roster = viewMode==='team' ? DB.teams[cid]||[] : DB.students[cid]||[];
+      const order = new Map(roster.map((entry, i)=>[entry.id, i]));
+      ranked.sort((a,b)=>(order.get(a.id)??Infinity)-(order.get(b.id)??Infinity));
+    }
     // 순위 변동 감지: 지난 렌더 대비 등수가 바뀐 항목엔 플래시를, 새로 1위가 된 항목엔 왕관을 띄운다
     const rankChanges = {};
     ranked.forEach(r=>{
@@ -114,7 +121,6 @@ const GraphRenderer = {
     const H = area.clientHeight, W = area.clientWidth;
     const rowH = clamp((H-10)/Math.max(n,1), 34, 110);
     const trackH = clamp(rowH*0.55, 24, 64);
-    const maxAbs = Math.max(10, ...ranked.map(r=>Math.max(r.score,0)));
     ranked.forEach((r,i)=>{
       let el = area.querySelector(`[data-sid="${r.id}"]`);
       const isNew=!el;
@@ -132,15 +138,17 @@ const GraphRenderer = {
       el.querySelector('.race-track').style.height = trackH+'px';
       el.querySelector('.race-name').textContent = r.name;
       const fillEl = el.querySelector('.race-fill');
-      const trackW = W-100;
       // 음수 점수는 트랙을 거의 바닥(최소 너비)으로 표시하고, 숫자는 실제 값을 그대로 보여준다.
-      const pct = clamp(Math.max(r.score,0)/maxAbs, 0.03, 1);
+      // Use the same independent score curve as the vertical bars. Another
+      // team's points must not change this row's width.
+      const positiveScore = Math.max(r.score, 0);
+      const pct = Math.max(0.03, 0.85 * positiveScore / (positiveScore + 100));
       const prevScore = fillEl.dataset.score;
       if(isNew){
-        fillEl.style.width = (trackW*0.03)+'px';
+        fillEl.style.width = '3%';
         void fillEl.offsetWidth;
       }
-      fillEl.style.width = (trackW*pct)+'px';
+      fillEl.style.width = (pct*100)+'%';
       fillEl.dataset.score=r.score;
       if(r.color){
         fillEl.style.background = `linear-gradient(90deg, ${shadeColor(r.color,-25)}, ${r.color})`;
