@@ -21,6 +21,12 @@ const GraphRenderer = {
     else if(type==='race') GraphRenderer.race(area, ranked, rankChanges);
     else if(type==='line') GraphRenderer.line(area, ranked, cid, viewMode);
     else if(type==='mood') GraphRenderer.mood(area, cid);
+    else if(type==='ladder'){
+      if(area.dataset.mode!=='ladder'){
+        area.dataset.mode='ladder';
+        GiftLadder.mount(area, cid);
+      }
+    }
     else GraphRenderer.donut(area, ranked);
     $$('#graphSwitch .icon-btn').forEach(b=>b.classList.toggle('on', b.dataset.g===type));
     $$('#modeSwitch .icon-btn').forEach(b=>b.classList.toggle('on', b.dataset.m===((DB.viewMode[cid])||'student')));

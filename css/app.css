@@ -127,7 +127,7 @@
   .donut-pct{font-family:'JetBrains Mono',monospace;font-weight:800;font-size:16px;}
 
   /* ===== FOOTER DOCK ===== */
-  #dock{background:var(--bg-2);border-top:1px solid var(--panel-border);padding:10px 14px 12px;
+  #dock{background:var(--bg-2);border-top:1px solid var(--panel-border);padding:10px 92px 12px 14px;
     display:flex;flex-direction:column;gap:8px;flex-shrink:0;}
   #questionPanel{display:none;background:var(--panel);border:1px solid var(--panel-border);
     border-radius:12px;padding:8px 12px;font-size:13px;align-items:center;gap:10px;}
@@ -296,6 +296,12 @@
 
   /* Mini dropdown (replaces native <select> for team assignment) */
   .mini-dropdown{position:relative;}
+  .bulk-action-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;
+    padding:8px 10px;background:var(--bg-2);border-radius:10px;border:1px solid var(--panel-border);}
+  .bulk-select-all{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-dim);
+    cursor:pointer;user-select:none;}
+  .bulk-select-all input{width:15px;height:15px;cursor:pointer;accent-color:var(--blue);}
+  .row-check{width:15px;height:15px;cursor:pointer;accent-color:var(--blue);margin-right:2px;flex-shrink:0;}
   .mini-dropdown-btn{background:var(--bg-2);border:1px solid var(--panel-border);color:var(--text);
     border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer;min-width:96px;text-align:left;}
   .mini-dropdown-btn:hover{border-color:var(--blue);}
@@ -358,8 +364,7 @@
     text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%;}
 
   /* Ladder */
-  #ladderModal .modal{max-width:640px;}
-  #ladderCanvas{width:100%;touch-action:none;}
+  [data-ladder="canvas"]{width:100%;touch-action:none;max-width:100%;}
   .gift-reveal{text-align:center;padding:20px;}
   .gift-reveal .display{font-size:26px;color:var(--gold);margin-bottom:6px;}
 
@@ -372,6 +377,7 @@
   @media (max-width: 480px){
     header{padding:8px 10px;gap:6px;}
     #stage{padding:18px 72px 6px 14px;}
+    #dock{padding:8px 72px 10px 10px;}
     .brand{font-size:16px;}
     .brand-logo{height:20px;}
     .icon-btn{width:40px;height:40px;font-size:17px;}
@@ -391,7 +397,7 @@
     .modal{padding:14px;max-width:100%;}
     .color-swatch-btn{width:30px;height:30px;}
     .color-popover{width:190px;}
-    #ladderCanvas{min-width:520px;}
-    #ladderStage{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+    [data-ladder="canvas"]{min-width:520px;}
+    #graphArea[data-mode="ladder"]{overflow-x:auto;-webkit-overflow-scrolling:touch;}
     .winner-name{font-size:clamp(34px,14vw,70px);}
   }

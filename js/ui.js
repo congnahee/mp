@@ -88,6 +88,7 @@ function gradeEntity(cid, targetType, entityId, delta, note){
   requestAnimationFrame(()=>GraphRenderer.burst(entityId, delta>=0));
 }
 let lastChipTapEntityId = null, lastChipTapAt = 0;
+let selectedStudentIds = new Set();
 function attachChipGesture(chip, cid, targetType, entityId){
   const THRESH_TAP = 8, THRESH_SWIPE = 56, DOUBLE_TAP_MS = 500;
   let startX=0, startY=0, dx=0, dragging=false, moved=false;
@@ -238,7 +239,11 @@ $('#graphSwitch').addEventListener('click', e=>{
 $('#emptyAddClass').onclick=()=>openModal('#modalSettings');
 $('#btnSettings').onclick=()=>openModal('#modalSettings');
 $('#btnHistory').onclick=()=>{ renderHistoryModal(); openModal('#modalHistory'); };
-$('#gift-fab').onclick=()=>GiftLadder.open();
+$('#gift-fab').onclick=()=>{
+  const cid = DB.activeClassId; if(!cid) return;
+  DB.graphType[cid] = 'ladder';
+  persistAndRender();
+};
 $('#present-fab').onclick=()=>{
   $('#app').classList.add('present-mode');
   const cid = DB.activeClassId;
@@ -534,16 +539,27 @@ function renderSettingsLists(){
     };
     classList.appendChild(row);
   });
+  renderStudentClassChips(cid);
   const studentList = $('#studentList'); studentList.innerHTML='';
   if(cid){
+    // 다른 반으로 옮기면 이전 선택은 의미가 없으므로, 지금 반에 실제로 있는 학생만 남긴다
+    const idsInClass = new Set((DB.students[cid]||[]).map(s=>s.id));
+    Array.from(selectedStudentIds).forEach(id=>{ if(!idsInClass.has(id)) selectedStudentIds.delete(id); });
     (DB.students[cid]||[]).forEach(s=>{
       const row=document.createElement('div'); row.className='row-item';
-      row.innerHTML = `<span>${s.name}</span>
+      row.innerHTML = `<span style="display:flex;align-items:center;">
+          <input type="checkbox" class="row-check" data-sid-check="${s.id}" ${selectedStudentIds.has(s.id)?'checked':''}>
+          ${s.name}
+        </span>
         <span class="row-right">
           ${colorSwatchHTML('student', s.id, s.color)}
           <span class="x" data-sid-edit="${s.id}" style="color:var(--blue);">수정</span>
           <span class="x" data-sid-del="${s.id}">삭제</span>
         </span>`;
+      row.querySelector('[data-sid-check]').addEventListener('change', (e)=>{
+        if(e.target.checked) selectedStudentIds.add(s.id); else selectedStudentIds.delete(s.id);
+        renderStudentBulkBar(cid);
+      });
       row.querySelector('[data-sid-edit]').onclick=()=>{
         uiPrompt('학생 이름을 수정하세요', s.name, (name)=>{
           const v=(name||'').trim(); if(!v) return;
@@ -556,6 +572,7 @@ function renderSettingsLists(){
       studentList.appendChild(row);
     });
   }
+  renderStudentBulkBar(cid);
   const periodHist = $('#periodHistory'); periodHist.innerHTML='';
   if(cid){
     (DB.periods[cid]||[]).filter(p=>p.status==='closed').reverse().forEach(p=>{
@@ -601,6 +618,77 @@ function renderActivePeriodEditor(){
     uiConfirm(`'${p.label}' 기간의 점수와 채점 이력을 모두 초기화할까요? 되돌릴 수 없어요.`, ()=>PeriodManager.resetActive(cid));
   };
 }
+
+function renderStudentClassChips(cid){
+  const wrap = $('#studentTabClassChips');
+  if(!wrap) return;
+  wrap.innerHTML = '';
+  DB.classes.forEach(c=>{
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = c.id===cid ? 'active' : '';
+    b.textContent = c.name;
+    b.onclick = ()=>RosterModule.setActive(c.id);
+    wrap.appendChild(b);
+  });
+  if(DB.classes.length===0){
+    wrap.innerHTML = '<div class="hint">먼저 "반 관리" 탭에서 반을 추가해주세요.</div>';
+  }
+}
+
+function renderStudentBulkBar(cid){
+  const selectAll = $('#studentSelectAll');
+  const countEl = $('#studentSelectedCount');
+  const teamDropdown = $('#bulkTeamDropdown');
+  const deleteBtn = $('#bulkDeleteStudentsBtn');
+  if(!selectAll) return;
+  if(!cid){
+    countEl.textContent = '0명 선택';
+    selectAll.checked = false;
+    teamDropdown.style.display = 'none';
+    deleteBtn.disabled = true;
+    return;
+  }
+  const total = (DB.students[cid]||[]).length;
+  const selectedCount = selectedStudentIds.size;
+  countEl.textContent = `${selectedCount}명 선택`;
+  selectAll.checked = total>0 && selectedCount===total;
+  deleteBtn.disabled = selectedCount===0;
+  deleteBtn.style.opacity = selectedCount===0 ? '.4' : '1';
+  // 팀 기능이 켜진 반에서만 "선택 팀배정" 드롭다운을 보여준다
+  if(DB.teamsEnabled[cid]){
+    teamDropdown.style.display = selectedCount>0 ? 'block' : 'none';
+    const teams = DB.teams[cid]||[];
+    const menu = $('#bulkTeamMenu');
+    menu.innerHTML = `<button type="button" data-team-assign="">미배정</button>` +
+      teams.map(t=>`<button type="button" data-team-assign="${t.id}">${t.name}</button>`).join('');
+  } else {
+    teamDropdown.style.display = 'none';
+  }
+}
+$('#studentSelectAll').addEventListener('change', (e)=>{
+  const cid = DB.activeClassId; if(!cid) return;
+  if(e.target.checked){
+    (DB.students[cid]||[]).forEach(s=>selectedStudentIds.add(s.id));
+  } else {
+    selectedStudentIds.clear();
+  }
+  renderSettingsLists();
+});
+$('#bulkDeleteStudentsBtn').addEventListener('click', ()=>{
+  const cid = DB.activeClassId; if(!cid || selectedStudentIds.size===0) return;
+  const n = selectedStudentIds.size;
+  uiConfirm(`선택한 학생 ${n}명을 삭제할까요? 되돌릴 수 없어요.`, ()=>{
+    Array.from(selectedStudentIds).forEach(sid=>RosterModule.removeStudent(cid, sid));
+    selectedStudentIds.clear();
+  });
+});
+$('#bulkTeamMenu').addEventListener('click', (e)=>{
+  const b = e.target.closest('button[data-team-assign]'); if(!b) return;
+  const cid = DB.activeClassId; if(!cid) return;
+  const teamId = b.dataset.teamAssign || null;
+  Array.from(selectedStudentIds).forEach(sid=>TeamModule.assignStudent(cid, sid, teamId));
+});
 
 function renderTeamTab(){
   const cid = DB.activeClassId;

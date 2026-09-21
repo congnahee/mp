@@ -24,6 +24,7 @@
       <button class="icon-btn" data-g="line" title="꺾은선">📈</button>
       <button class="icon-btn" data-g="donut" title="도넛">◔</button>
       <button class="icon-btn" data-g="mood" title="기분 온도계">🌡</button>
+      <button class="icon-btn" data-g="ladder" title="선물 사다리">🎁</button>
     </div>
     <div class="graph-switch" id="modeSwitch" style="display:none;">
       <button class="icon-btn" data-m="student" title="학생 모드">🙋</button>
@@ -117,13 +118,26 @@
         <button class="ghost-btn" id="reseedBtn" style="width:100%;margin-top:10px;">🔄 샘플 데이터로 초기화</button>
       </div>
       <div id="stab-student" style="display:none;">
+        <h4>반 선택</h4>
+        <div class="chip-tabs" id="studentTabClassChips"></div>
         <div class="field"><input id="newStudentName" placeholder="학생 이름"></div>
-        <button class="primary-btn" id="addStudentBtn">+ 학생 추가 (현재 반)</button>
+        <button class="primary-btn" id="addStudentBtn">+ 학생 추가 (선택한 반)</button>
         <h4>명단 한번에 올리기</h4>
         <div class="hint">CSV나 엑셀(.xlsx) 파일을 올리면, 각 행의 이름을 한번에 학생으로 등록해요. 첫 번째 열이 이름이면 되고, "이름"이라는 제목행이 있어도 자동으로 건너뛰어요.</div>
         <button class="ghost-btn" id="importStudentsTrigger" style="width:100%;">📤 CSV/엑셀로 명단 올리기</button>
         <input type="file" id="importStudentsInput" accept=".csv,.xlsx,.xls" style="display:none;">
         <h4>현재 반 학생 명단</h4>
+        <div class="bulk-action-row" id="studentBulkBar">
+          <label class="bulk-select-all">
+            <input type="checkbox" id="studentSelectAll"> 전체선택
+          </label>
+          <span class="num" id="studentSelectedCount" style="color:var(--text-dim2);font-size:12px;">0명 선택</span>
+          <div class="mini-dropdown" id="bulkTeamDropdown" style="display:none;">
+            <button type="button" class="mini-dropdown-btn">팀 배정 ▾</button>
+            <div class="mini-dropdown-menu" id="bulkTeamMenu"></div>
+          </div>
+          <button class="ghost-btn" id="bulkDeleteStudentsBtn" style="color:var(--loss);margin-left:auto;">선택 삭제</button>
+        </div>
         <div id="studentList"></div>
         <button class="primary-btn" id="applyStudentColorsBtn" style="background:var(--gain);color:#0A0820;margin-top:10px;">✅ 그래프에 적용하고 확인하기</button>
       </div>
@@ -241,15 +255,6 @@
         <input type="hidden" id="moodDate" value="">
       </div>
       <div id="moodList"></div>
-    </div>
-  </div>
-
-  <!-- ===== LADDER MODAL ===== -->
-  <div class="modal-back" id="ladderModal">
-    <div class="modal">
-      <button class="close-x" data-close>×</button>
-      <h3>🎁 사다리 타기</h3>
-      <div id="ladderStage"></div>
     </div>
   </div>
 
