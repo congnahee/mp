@@ -44,9 +44,6 @@ const GraphRenderer = {
     // 막대폭이 상한(220px)에 걸려도 화면 오른쪽이 비지 않도록,
     // 남는 여백은 막대 사이 간격으로 고르게 분산해서 항상 컨테이너 전체 너비를 채운다.
     const gap = Math.max(minGap, (W - bw*n) / (n+1));
-    // Keep a stable 100-point scale at low scores so the first 10 points
-    // occupy one tenth of the chart instead of filling it.
-    const maxAbs = Math.max(100, ...ranked.map(r=>Math.max(r.score,0)));
     const zoneH = H - 60;
     ranked.forEach((r,i)=>{
       let el = area.querySelector(`[data-sid="${r.id}"]`);
@@ -67,7 +64,11 @@ const GraphRenderer = {
       const fill = el.querySelector('.bar-fill');
       // 음수 점수는 막대를 거의 바닥(최소 높이)으로 표시해서 "점수가 있는 것처럼" 보이지 않게 한다.
       // 숫자 라벨에는 실제 값(-10 등)을 그대로 보여준다.
-      const heightPx = clamp(Math.max(r.score,0)/maxAbs * (zoneH*0.85), 4, zoneH);
+      // Each bar depends only on its own score. A shared maximum makes every
+      // other team's bar shrink when the leader gains points. The curve keeps
+      // growing above 100 without an abrupt rescale or a hard ceiling.
+      const positiveScore = Math.max(r.score, 0);
+      const heightPx = Math.max(4, zoneH * 0.85 * positiveScore / (positiveScore + 100));
       const prevScore = fill.dataset.score;
       if(isNew){
         // 방금 생긴 막대는 "이전 상태"가 없어서 CSS transition이 못 타고 바로
