@@ -6,12 +6,13 @@
    CSS transition으로 자연스럽게 오르내리는 모션이 된다.
 ============================================================ */
 function moodColor(value){
-  if(value===null || value===undefined) return 'var(--panel-border)';
+  if(value===null || value===undefined) return 'var(--text-dim2)'; // 기록 없음 — 배경에 묻히지 않는 확실한 회색
   const t = clamp(value,0,10)/10;
-  // 220°(파랑) → -30°/330°(빨강-핑크)까지 250도를 스윕하면서
-  // 청록(180)·초록(120)·노랑(60)·주황(20)을 자연스럽게 거쳐간다.
-  const hue = ((220 - t*250) % 360 + 360) % 360;
-  return `hsl(${hue}, 88%, 58%)`;
+  // 205°(하늘색) → -10°/350°(선명한 빨강)까지 215도를 스윕하면서
+  // 청록·초록·노랑·주황을 자연스럽게 거쳐간다.
+  const hue = ((205 - t*215) % 360 + 360) % 360;
+  const light = 58 - t*10; // 하늘색 쪽은 밝게, 빨강 쪽은 더 진하고 선명하게
+  return `hsl(${hue}, 92%, ${light}%)`;
 }
 function renderThermometer(container, value){
   if(!container) return;
