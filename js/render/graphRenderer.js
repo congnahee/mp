@@ -30,6 +30,9 @@ const GraphRenderer = {
     else GraphRenderer.donut(area, ranked);
     $$('#graphSwitch .icon-btn').forEach(b=>b.classList.toggle('on', b.dataset.g===type));
     $$('#modeSwitch .icon-btn').forEach(b=>b.classList.toggle('on', b.dataset.m===((DB.viewMode[cid])||'student')));
+    // 사다리 화면에서는 채점용 하단 독이 의미가 없으니 숨기고, 그래프 영역을 더 넓게 쓴다
+    const dockEl = $('#dock');
+    if(dockEl) dockEl.style.display = (type==='ladder') ? 'none' : '';
   },
   bar(area, ranked, rankChanges){
     if(area.dataset.mode!=='bar'){ area.innerHTML=''; area.dataset.mode='bar'; }
@@ -41,7 +44,9 @@ const GraphRenderer = {
     // 막대폭이 상한(220px)에 걸려도 화면 오른쪽이 비지 않도록,
     // 남는 여백은 막대 사이 간격으로 고르게 분산해서 항상 컨테이너 전체 너비를 채운다.
     const gap = Math.max(minGap, (W - bw*n) / (n+1));
-    const maxAbs = Math.max(10, ...ranked.map(r=>Math.max(r.score,0)));
+    // Keep a stable 100-point scale at low scores so the first 10 points
+    // occupy one tenth of the chart instead of filling it.
+    const maxAbs = Math.max(100, ...ranked.map(r=>Math.max(r.score,0)));
     const zoneH = H - 60;
     ranked.forEach((r,i)=>{
       let el = area.querySelector(`[data-sid="${r.id}"]`);
