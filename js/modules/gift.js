@@ -1,8 +1,5 @@
 "use strict";
 /* ============================================================
-   GIFT LADDER MODULE — reads ranking, fully independent screen
-============================================================ */
-/* ============================================================
    GIFT SET MODULE — 여러 선물 세트(생일선물/월별선물 등)를
    만들고 전환. 사다리 모듈은 "지금 활성화된 세트"만 읽는다.
 ============================================================ */
@@ -32,6 +29,7 @@ const GiftSetModule = {
   }
 };
 
+"use strict";
 const GiftLadder = {
   state: null,
   container: null,
@@ -176,6 +174,7 @@ const GiftLadder = {
   }
 };
 
+"use strict";
 /* 선물 설정과 1위 발표 UI도 이 모듈이 소유한다. */
 const GiftUI = {
   fireworksRAF:null,particles:[],
@@ -199,13 +198,18 @@ const GiftUI = {
     const burst=()=>{const x=Math.random()*canvas.width,y=canvas.height*.25+Math.random()*canvas.height*.3;for(let i=0;i<42;i++){const angle=Math.random()*Math.PI*2,speed=2+Math.random()*4.2;GiftUI.particles.push({x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life:55+Math.random()*20,color:colors[Math.floor(Math.random()*colors.length)]});}};
     let frame=0;const loop=()=>{ctx.clearRect(0,0,canvas.width,canvas.height);if(frame%38===0)burst();GiftUI.particles.forEach(pt=>{pt.x+=pt.vx;pt.y+=pt.vy;pt.vy+=.05;pt.life--;ctx.globalAlpha=Math.max(pt.life/75,0);ctx.fillStyle=pt.color;ctx.beginPath();ctx.arc(pt.x,pt.y,2.6,0,Math.PI*2);ctx.fill();});GiftUI.particles=GiftUI.particles.filter(pt=>pt.life>0);ctx.globalAlpha=1;frame++;GiftUI.fireworksRAF=requestAnimationFrame(loop);};burst();loop();
   },
-  stopFireworks(){if(GiftUI.fireworksRAF)cancelAnimationFrame(GiftUI.fireworksRAF);GiftUI.fireworksRAF=null;GiftUI.particles=[];},
-  init(){
-    $('#gift-fab').onclick=()=>{const cid=DB.activeClassId;if(cid){DB.graphType[cid]='ladder';persistAndRender();}};
-    $('#winner-fab').onclick=GiftUI.reveal;$('#winnerCloseBtn').onclick=GiftUI.closeReveal;
-    $('#addGiftSetBtn').onclick=()=>{const cid=DB.activeClassId;if(!cid){uiAlert('먼저 반을 선택하세요');return;}const input=$('#newGiftSetName'),v=input.value.trim();if(v){GiftSetModule.add(cid,v);input.value='';}};
-    $('#saveGiftsBtn').onclick=()=>{const cid=DB.activeClassId;if(!cid){uiAlert('먼저 반을 선택하세요');return;}const active=activeGiftSet(cid);if(!active)return;const gifts={};$$('#giftInputs input').forEach(i=>{if(i.value.trim())gifts[i.dataset.rank]=i.value.trim();});active.gifts=gifts;persistAndRender();const hint=$('#giftSavedHint');hint.style.display='block';clearTimeout(hint._t);hint._t=setTimeout(()=>hint.style.display='none',1500);};
-  }
+  stopFireworks(){if(GiftUI.fireworksRAF)cancelAnimationFrame(GiftUI.fireworksRAF);GiftUI.fireworksRAF=null;GiftUI.particles=[];}
 };
 
+"use strict";
+GiftUI.init=function(){
+  $('#gift-fab').onclick=()=>{const cid=DB.activeClassId;if(cid){DB.graphType[cid]='ladder';persistAndRender();}};
+  $('#winner-fab').onclick=GiftUI.reveal;$('#winnerCloseBtn').onclick=GiftUI.closeReveal;
+  $('#addGiftSetBtn').onclick=()=>{const cid=DB.activeClassId;if(!cid){uiAlert('먼저 반을 선택하세요');return;}const input=$('#newGiftSetName'),v=input.value.trim();if(v){GiftSetModule.add(cid,v);input.value='';}};
+  $('#saveGiftsBtn').onclick=()=>{const cid=DB.activeClassId;if(!cid){uiAlert('먼저 반을 선택하세요');return;}const active=activeGiftSet(cid);if(!active)return;const gifts={};$$('#giftInputs input').forEach(i=>{if(i.value.trim())gifts[i.dataset.rank]=i.value.trim();});active.gifts=gifts;persistAndRender();const hint=$('#giftSavedHint');hint.style.display='block';clearTimeout(hint._t);hint._t=setTimeout(()=>hint.style.display='none',1500);};
+};
+
+"use strict";
 AppFeatures.register('gifts',{order:70,init:GiftUI.init,render:GiftUI.render,onSettingsTab:name=>{if(name==='gift')GiftUI.render(DB.activeClassId);}});
+
+

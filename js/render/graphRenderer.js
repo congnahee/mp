@@ -1,7 +1,4 @@
 "use strict";
-/* ============================================================
-   GRAPH RENDERER — swappable visualization, reads scores only
-============================================================ */
 const GraphRenderer = {
   prevRanks: {},
   render(cid){
@@ -34,6 +31,10 @@ const GraphRenderer = {
     const dockEl = $('#dock');
     if(dockEl) dockEl.style.display = (type==='ladder') ? 'none' : '';
   },
+};
+
+"use strict";
+Object.assign(GraphRenderer,{
   bar(area, ranked, rankChanges){
     if(area.dataset.mode!=='bar'){ area.innerHTML=''; area.dataset.mode='bar'; }
     const n = ranked.length;
@@ -107,6 +108,10 @@ const GraphRenderer = {
       if(el.dataset.sid && !ranked.find(r=>r.id===el.dataset.sid)) el.remove();
     });
   },
+});
+
+"use strict";
+Object.assign(GraphRenderer,{
   race(area, ranked, rankChanges){
     if(area.dataset.mode!=='race'){ area.innerHTML=''; area.dataset.mode='race'; }
     const n = ranked.length;
@@ -169,6 +174,11 @@ const GraphRenderer = {
       if(el.dataset.sid && !ranked.find(r=>r.id===el.dataset.sid)) el.remove();
     });
   },
+});
+
+
+"use strict";
+Object.assign(GraphRenderer,{
   line(area, ranked, cid, viewMode){
     area.dataset.mode='line';
     const hist = currentHistory(cid);
@@ -224,6 +234,10 @@ const GraphRenderer = {
     legend += '</div>';
     area.innerHTML = svg+legend;
   },
+});
+
+"use strict";
+Object.assign(GraphRenderer,{
   donut(area, ranked){
     area.dataset.mode='donut';
     if(ranked.length===0){ area.innerHTML=''; return; }
@@ -248,6 +262,10 @@ const GraphRenderer = {
     html += '</div>';
     area.innerHTML = html;
   },
+});
+
+"use strict";
+Object.assign(GraphRenderer,{
   mood(area, cid){
     // bar()/race()와 같은 방식으로 기존 DOM을 재사용해서, 값이 바뀔 때
     // 매번 새로 그리지 않고 CSS transition으로 부드럽게 오르내리게 한다.
@@ -310,6 +328,11 @@ const GraphRenderer = {
       if(col.dataset.sid && !students.find(s=>s.id===col.dataset.sid)) col.remove();
     });
   },
+});
+
+
+"use strict";
+Object.assign(GraphRenderer,{
   burst(studentId, positive){
     const el = document.querySelector(`[data-sid="${studentId}"]`);
     if(!el) return;
@@ -334,9 +357,10 @@ const GraphRenderer = {
       }
     }
   }
-};
+});
 
-const GraphFeature = {
+"use strict";
+const GraphFeature={
   render(cid){if(cid)GraphRenderer.render(cid);},
   init(){
     $('#graphSwitch').onclick=e=>{const b=e.target.closest('.icon-btn'),cid=DB.activeClassId;if(!b||!cid)return;DB.graphType[cid]=b.dataset.g;persistAndRender();};
@@ -345,4 +369,8 @@ const GraphFeature = {
     window.addEventListener('resize',()=>{if(DB.activeClassId)GraphRenderer.render(DB.activeClassId);});
   }
 };
+
+"use strict";
 AppFeatures.register('graphs',{order:60,init:GraphFeature.init,render:GraphFeature.render});
+
+
