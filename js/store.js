@@ -1,8 +1,8 @@
 "use strict";
 /* ============================================================
    CENTRAL STORE (DB) — single source of truth
-   Modules below only read/mutate DB through the functions here,
-   then call render(). No module reaches into another module's guts.
+   기능 모듈은 자신의 데이터·화면·이벤트를 함께 관리하고,
+   AppFeatures에 렌더러를 등록해 공통 화면 주기에 참여한다.
 ============================================================ */
 let DB = {
   classes: [],           // [{id,name}]

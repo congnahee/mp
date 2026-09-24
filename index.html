@@ -73,9 +73,9 @@
     <div class="student-strip" id="studentStrip"></div>
     <div class="action-row">
       <div class="point-stepper" id="pointStepper">
-        <button id="ptMinus">−</button>
-        <span class="val num" id="ptVal">10</span>
-        <button id="ptPlus">+</button>
+        <button type="button" id="ptMinus" aria-label="점수 1점 감소">−</button>
+        <input class="val num" id="ptVal" type="number" inputmode="numeric" min="1" max="100" step="1" value="10" aria-label="채점 점수 직접 입력">
+        <button type="button" id="ptPlus" aria-label="점수 1점 증가">+</button>
       </div>
       <button class="big-btn correct" id="btnCorrect" disabled>✅ 정답</button>
       <button class="big-btn wrong" id="btnWrong" disabled>❌ 오답</button>
@@ -239,7 +239,7 @@
         </div>
         <div class="field" id="qAnswerField">
           <input id="qAnswer" placeholder="정답 (선생님만 확인용)">
-          <input id="qPoints" type="number" value="10" style="max-width:70px;" placeholder="배점">
+          <input id="qPoints" type="number" inputmode="numeric" min="1" max="100" step="1" value="10" style="max-width:82px;" placeholder="배점" aria-label="문제 배점 직접 입력">
         </div>
         <button class="primary-btn" id="addQBtn">+ 문제 추가</button>
         <h4>문제 목록</h4>
@@ -307,6 +307,8 @@
 <script src="js/utils.js"></script>
 <script src="js/storage.js"></script>
 <script src="js/store.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/modules/settings.js"></script>
 <script src="js/modules/roster.js"></script>
 <script src="js/modules/team.js"></script>
 <script src="js/modules/period.js"></script>
@@ -314,11 +316,10 @@
 <script src="js/modules/quiz.js"></script>
 <script src="js/modules/ranking.js"></script>
 <script src="js/modules/gift.js"></script>
+<script src="js/render/thermometer.js"></script>
 <script src="js/modules/mood.js"></script>
 <script src="js/render/graphRenderer.js"></script>
-<script src="js/render/thermometer.js"></script>
-<script src="js/ui.js"></script>
-<script src="js/moodUI.js"></script>
+<script src="js/modules/sync.js"></script>
 <script src="js/sampleData.js"></script>
 <script src="js/main.js"></script>
 

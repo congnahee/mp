@@ -152,7 +152,12 @@
     padding:4px;border:1px solid var(--panel-border);}
   .point-stepper button{width:28px;height:28px;border-radius:8px;border:none;background:var(--panel-2);
     color:var(--text);font-size:15px;cursor:pointer;}
-  .point-stepper .val{width:38px;text-align:center;font-family:'JetBrains Mono',monospace;font-weight:800;}
+  .point-stepper .val{width:48px;height:28px;padding:0 3px;border:1px solid transparent;border-radius:7px;
+    background:transparent;color:var(--text);text-align:center;font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:800;
+    -moz-appearance:textfield;}
+  .point-stepper .val::-webkit-inner-spin-button,.point-stepper .val::-webkit-outer-spin-button{-webkit-appearance:none;margin:0;}
+  .point-stepper .val:hover{background:var(--panel-2);}
+  .point-stepper .val:focus{outline:none;border-color:var(--accent);background:var(--panel-2);box-shadow:0 0 0 3px var(--accent-glow);}
   .big-btn{flex:1;min-width:120px;padding:14px;border:none;border-radius:14px;font-family:'Black Han Sans',sans-serif;
     font-size:16px;cursor:pointer;color:#0A0820;transition:.15s;}
   .big-btn.correct{background:var(--gain);box-shadow:0 4px 16px var(--gain-glow);}
