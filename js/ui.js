@@ -1025,6 +1025,33 @@ function updateServerStatus(){
     el.textContent = '연결 안됨';
     el.style.color = 'var(--text-dim2)';
   }
+  updateSaveNowUI();
+}
+function saveTimeLabel(ts){
+  if(!ts) return '';
+  return new Intl.DateTimeFormat('ko-KR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}).format(new Date(ts));
+}
+function updateSaveNowUI(){
+  const saving=lastSaveReport && lastSaveReport.status==='saving';
+  const configs=[
+    {btn:$('#serverSaveNowBtn'), status:$('#serverSaveNowStatus'), connected:ServerSync.connected,
+      idle:'서버에 연결하면 현재 상황을 직접 저장할 수 있어요.'},
+    {btn:$('#cloudSaveNowBtn'), status:$('#cloudSaveNowStatus'), connected:CloudSync.connected,
+      idle:'Firebase에 연결하면 현재 상황을 직접 저장할 수 있어요.'}
+  ];
+  configs.forEach(c=>{
+    if(!c.btn || !c.status) return;
+    c.btn.disabled=!c.connected || saving;
+    c.btn.setAttribute('aria-busy', String(saving));
+    c.status.className='save-now-status';
+    if(!c.connected){ c.status.textContent=c.idle; return; }
+    if(lastSaveReport && lastSaveReport.status!=='idle'){
+      c.status.classList.add(lastSaveReport.status);
+      c.status.textContent=`${lastSaveReport.message}${lastSaveReport.at?' · '+saveTimeLabel(lastSaveReport.at):''}`;
+    }else{
+      c.status.textContent='자동 저장 중 · 필요할 때 아래 버튼으로 즉시 저장할 수 있어요.';
+    }
+  });
 }
 $('#serverConnectBtn').onclick=async()=>{
   const key = $('#serverKey').value;
@@ -1040,6 +1067,13 @@ $('#serverDisconnectBtn').onclick=()=>{
     ServerSync.disconnect();
     updateServerStatus();
   });
+};
+$('#serverSaveNowBtn').onclick=async()=>{
+  const btn=$('#serverSaveNowBtn');
+  btn.disabled=true; btn.textContent='저장 중...';
+  await saveCurrentStateNow('server');
+  btn.textContent='💾 지금 상황을 서버에 저장';
+  updateSaveNowUI();
 };
 
 /* ---- cloud sync tab ---- */
@@ -1059,6 +1093,7 @@ function updateCloudStatus(){
     el.textContent = '연결 안됨';
     el.style.color = 'var(--text-dim2)';
   }
+  updateSaveNowUI();
 }
 $('#cloudConnectBtn').onclick=async()=>{
   const url = $('#cloudUrl').value;
@@ -1075,6 +1110,13 @@ $('#cloudDisconnectBtn').onclick=()=>{
     CloudSync.disconnect();
     updateCloudStatus();
   });
+};
+$('#cloudSaveNowBtn').onclick=async()=>{
+  const btn=$('#cloudSaveNowBtn');
+  btn.disabled=true; btn.textContent='저장 중...';
+  await saveCurrentStateNow('cloud');
+  btn.textContent='💾 지금 상황을 Firebase에 저장';
+  updateSaveNowUI();
 };
 
 window.addEventListener('resize', ()=>{ if(DB.activeClassId) GraphRenderer.render(DB.activeClassId); });

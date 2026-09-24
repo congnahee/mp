@@ -35,7 +35,7 @@ function ensureClassData(cid){
   if(!DB.quizzes[cid]) DB.quizzes[cid]=[];
   if(!DB.graphType[cid]) DB.graphType[cid]='bar';
   if(!DB.gifts[cid]) DB.gifts[cid]={};
-  if(!DB.selection[cid]) DB.selection[cid]={targetType:'student', targetId:null, points:10, quizId:null, brushValue:null};
+  if(!DB.selection[cid]) DB.selection[cid]={targetType:'student', targetId:null, points:10, quizId:null};
   if(DB.teamsEnabled[cid]===undefined) DB.teamsEnabled[cid]=false;
   if(!DB.teams[cid]) DB.teams[cid]=[];
   if(!DB.studentTeam[cid]) DB.studentTeam[cid]={};

@@ -26,8 +26,22 @@ export default async function handler(req, res) {
 
     if (req.method === 'POST' || req.method === 'PUT') {
       const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-      await redis.set(storeKey, body.data);
-      res.status(200).json({ ok: true });
+      const incoming = body && body.data;
+      if (!incoming || !incoming.classes) {
+        res.status(400).json({ error: '저장할 데이터가 올바르지 않아요' });
+        return;
+      }
+      if (!body.force) {
+        const current = await redis.get(storeKey);
+        const currentTime = Number(current && current._updatedAt) || 0;
+        const incomingTime = Number(incoming._updatedAt) || 0;
+        if (currentTime > incomingTime) {
+          res.status(409).json({ error: '서버에 더 최신 데이터가 있어요', data: current });
+          return;
+        }
+      }
+      await redis.set(storeKey, incoming);
+      res.status(200).json({ ok: true, updatedAt: incoming._updatedAt || null });
       return;
     }
 
