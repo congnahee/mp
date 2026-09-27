@@ -51,15 +51,10 @@ const CloudSync = {
       if(!res.ok) throw new Error('HTTP ' + res.status);
       const remote = await res.json();
       if(remote && remote.classes){
-        if(shouldApplyRemote(remote)){
-          DB = remote;
-          DB.classes.forEach(c=>ensureClassData(c.id));
-          await saveLocalCache();
-        } else if(!savePending && !saveInFlight){
-          if(!await this.push(DB)) throw new Error('클라우드 저장 실패');
-        }
+        DB = remote;
+        DB.classes.forEach(c=>ensureClassData(c.id));
       } else {
-        if(!await this.push(DB)) throw new Error('클라우드 저장 실패');
+        await this.push(DB); // 서버가 비어있으면 지금 데이터를 올려서 시작점으로 삼는다
       }
       this.saveConfig();
       this.connected = true;
@@ -79,10 +74,9 @@ const CloudSync = {
   },
   async push(data){
     try{
-      const res = await fetch(this.path(), { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data) });
-      if(!res.ok) throw new Error('HTTP '+res.status);
-      return true;
-    }catch(e){ console.warn('클라우드 저장 실패', e); return false; }
+      await fetch(this.path(), { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data) });
+      flashSaveStatus();
+    }catch(e){ console.warn('클라우드 저장 실패', e); }
   },
   listen(){
     if(this.es){ this.es.close(); this.es=null; }
@@ -92,7 +86,6 @@ const CloudSync = {
         try{
           const payload = JSON.parse(ev.data);
           if(!payload || !payload.data || !payload.data.classes) return;
-          if(!shouldApplyRemote(payload.data)) return;
           this.applyingRemote = true;
           DB = payload.data;
           DB.classes.forEach(c=>ensureClassData(c.id));
@@ -135,15 +128,10 @@ const ServerSync = {
       if(!res.ok) throw new Error('HTTP ' + res.status);
       const json = await res.json();
       if(json.data && json.data.classes){
-        if(shouldApplyRemote(json.data)){
-          DB = json.data;
-          DB.classes.forEach(c=>ensureClassData(c.id));
-          await saveLocalCache();
-        } else if(!savePending && !saveInFlight){
-          if(!await this.push(DB)) throw new Error('서버 DB 저장 실패');
-        }
+        DB = json.data;
+        DB.classes.forEach(c=>ensureClassData(c.id));
       } else {
-        if(!await this.push(DB)) throw new Error('서버 DB 저장 실패');
+        await this.push(DB); // 서버가 비어있으면 지금 데이터를 올려서 시작점으로 삼는다
       }
       this.saveConfig();
       this.connected = true;
@@ -161,16 +149,14 @@ const ServerSync = {
     this.stopPolling();
     this.clearConfig();
   },
-  async push(data, force){
+  async push(data){
     try{
-      const res = await fetch(this.path(), {
+      await fetch(this.path(), {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ data, force:!!force })
+        body: JSON.stringify({ data })
       });
-      if(res.status===409) throw new Error('서버에 더 최신 데이터가 있어요');
-      if(!res.ok) throw new Error('HTTP '+res.status);
-      return true;
-    }catch(e){ console.warn('서버 DB 저장 실패', e); return false; }
+      flashSaveStatus();
+    }catch(e){ console.warn('서버 DB 저장 실패', e); }
   },
   startPolling(){
     this.stopPolling();
@@ -180,7 +166,7 @@ const ServerSync = {
         const res = await fetch(this.path());
         if(!res.ok) return;
         const json = await res.json();
-        if(json.data && shouldApplyRemote(json.data) && JSON.stringify(json.data) !== JSON.stringify(DB)){
+        if(json.data && JSON.stringify(json.data) !== JSON.stringify(DB)){
           this.applyingRemote = true;
           DB = json.data;
           DB.classes.forEach(c=>ensureClassData(c.id));
@@ -197,141 +183,52 @@ const ServerSync = {
   }
 };
 
-let saveTimer=null, saveInFlight=false, savePending=false, saveRetryMs=5000;
-let lastSaveReport={status:'idle', at:0, message:''};
-function shouldApplyRemote(remote){
-  // A poll or delayed echo from our own upload must not undo points that are
-  // waiting to be saved, or replace them with an older server snapshot.
-  if(savePending || saveInFlight) return false;
-  const localTime = Number(DB._updatedAt) || 0;
-  const remoteTime = Number(remote._updatedAt) || 0;
-  return !localTime || remoteTime > localTime;
-}
+let saveTimer=null, saveInFlight=false, savePending=false;
 function scheduleSave(){
-  DB._updatedAt = Math.max(Date.now(), (Number(DB._updatedAt)||0) + 1);
   savePending = true;
-  setSaveReport('pending', '변경사항 저장 대기 중');
   clearTimeout(saveTimer);
   saveTimer = setTimeout(flushSave, 700);
 }
-function flashSaveStatus(message, isError){
+function flashSaveStatus(){
   const el = document.getElementById('saveStatus');
   if(!el) return;
-  el.textContent = message || '💾 저장됨';
-  el.style.color = isError ? 'var(--loss)' : 'var(--gain)';
   el.style.opacity='1';
   clearTimeout(el._t);
-  el._t = setTimeout(()=>{ el.style.opacity='0'; }, isError?4000:1800);
-}
-function setSaveReport(status, message){
-  lastSaveReport={status, at:Date.now(), message:message||''};
-  if(typeof updateSaveNowUI==='function') updateSaveNowUI();
+  el._t = setTimeout(()=>{ el.style.opacity='0'; }, 1300);
 }
 async function saveLocalCache(){
   const payload = JSON.stringify(DB);
-  let browserOk=true;
-  // Always keep a synchronous browser copy as the last line of defence.
-  try{ localStorage.setItem('arena-data', payload); }
-  catch(e){ browserOk=false; console.warn('브라우저 로컬 저장 실패', e); }
   if(!hasClaudeStorage){
-    return browserOk;
+    // localStorage는 동기 API라 재시도할 일이 거의 없다
+    try{ localStorage.setItem('arena-data', payload); flashSaveStatus(); }
+    catch(e){ console.warn('로컬 저장 실패', e); }
+    return;
   }
   let attempt = 0;
   while(attempt < 3){
     try{
       await window.storage.set('arena-data', payload, false);
-      return browserOk;
+      flashSaveStatus();
+      break;
     }catch(e){
       attempt++;
-      if(attempt >= 3){ console.warn('저장 재시도 실패 — 다음 변경 시 다시 시도합니다'); return false; }
+      if(attempt >= 3){ console.warn('저장 재시도 실패 — 다음 변경 시 다시 시도합니다'); }
       else await new Promise(r=>setTimeout(r, 500*attempt));
     }
   }
-  return false;
 }
 async function flushSave(){
   if(saveInFlight) return; // 이미 진행 중이면 savePending 플래그만 남기고 끝나면 다시 시도
   saveInFlight = true;
   savePending = false;
-  setSaveReport('saving', '자동 저장 중');
-  const localOk = await saveLocalCache();
+  await saveLocalCache();
   // 원격에서 방금 받은 데이터를 그대로 되돌려 올리지 않도록 방지
-  const pushes = [];
-  if(CloudSync.connected && !CloudSync.applyingRemote) pushes.push(CloudSync.push(DB));
-  if(ServerSync.connected && !ServerSync.applyingRemote) pushes.push(ServerSync.push(DB));
-  const results = await Promise.all(pushes);
-  saveInFlight = false;
-  if(savePending){
-    scheduleSave();
-  } else if(results.includes(false)){
-    // Keep the local score and retry the upload; never replace it with a
-    // stale poll while the server is unavailable.
-    savePending = true;
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(flushSave, saveRetryMs);
-    saveRetryMs = Math.min(saveRetryMs*2, 60000);
-    setSaveReport('error', '서버 저장 실패 · 자동 재시도 중');
-    flashSaveStatus('⚠ 서버 저장 재시도 중', true);
-  } else {
-    saveRetryMs = 5000;
-    const remoteSaved = pushes.length>0;
-    setSaveReport('saved', remoteSaved?'서버와 이 기기에 저장됨':'이 기기에 저장됨');
-    flashSaveStatus(remoteSaved?'☁ 서버 저장됨':'💾 기기 저장됨', false);
+  if(CloudSync.connected && !CloudSync.applyingRemote){
+    CloudSync.push(DB);
   }
-  return {localOk, remoteOk:!results.includes(false), remoteCount:pushes.length};
-}
-
-function waitForSaveIdle(){
-  return new Promise(resolve=>{
-    const check=()=>saveInFlight?setTimeout(check,40):resolve();
-    check();
-  });
-}
-
-async function saveCurrentStateNow(destination){
-  clearTimeout(saveTimer);
-  await waitForSaveIdle();
-  DB._updatedAt = Math.max(Date.now(), (Number(DB._updatedAt)||0) + 1);
-  savePending = false;
-  saveInFlight = true;
-  setSaveReport('saving', '현재 상황 저장 중');
-  const localOk = await saveLocalCache();
-  let remoteOk = true, remoteName = '';
-  if(destination==='server'){
-    remoteName='서버 DB';
-    remoteOk = ServerSync.connected && await ServerSync.push(DB, true);
-  }else if(destination==='cloud'){
-    remoteName='Firebase';
-    remoteOk = CloudSync.connected && await CloudSync.push(DB);
+  if(ServerSync.connected && !ServerSync.applyingRemote){
+    ServerSync.push(DB);
   }
   saveInFlight = false;
-  if(savePending){ scheduleSave(); }
-  if(localOk && remoteOk){
-    saveRetryMs=5000;
-    const message=`${remoteName}에 현재 상황 저장 완료`;
-    setSaveReport('saved', message);
-    flashSaveStatus('☁ 서버 저장됨', false);
-    return {ok:true, message};
-  }
-  savePending=true;
-  clearTimeout(saveTimer);
-  saveTimer=setTimeout(flushSave, saveRetryMs);
-  const message=localOk ? `${remoteName} 저장 실패 · 이 기기에는 저장됨` : '저장에 실패했어요';
-  setSaveReport('error', message);
-  flashSaveStatus('⚠ 서버 저장 실패', true);
-  return {ok:false, message};
+  if(savePending) scheduleSave();
 }
-
-function saveBeforeLeaving(){
-  if(!savePending && !saveInFlight) return;
-  DB._updatedAt = Math.max(Date.now(), (Number(DB._updatedAt)||0) + 1);
-  const snapshot=JSON.stringify(DB);
-  try{ localStorage.setItem('arena-data', snapshot); }catch(e){}
-  if(ServerSync.connected && navigator.sendBeacon){
-    try{
-      navigator.sendBeacon(ServerSync.path(), new Blob([JSON.stringify({data:DB})], {type:'application/json'}));
-    }catch(e){}
-  }
-}
-window.addEventListener('pagehide', saveBeforeLeaving);
-document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') saveBeforeLeaving(); });

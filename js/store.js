@@ -1,8 +1,8 @@
 "use strict";
 /* ============================================================
    CENTRAL STORE (DB) — single source of truth
-   기능 모듈은 자신의 데이터·화면·이벤트를 함께 관리하고,
-   AppFeatures에 렌더러를 등록해 공통 화면 주기에 참여한다.
+   Modules below only read/mutate DB through the functions here,
+   then call render(). No module reaches into another module's guts.
 ============================================================ */
 let DB = {
   classes: [],           // [{id,name}]
@@ -35,7 +35,7 @@ function ensureClassData(cid){
   if(!DB.quizzes[cid]) DB.quizzes[cid]=[];
   if(!DB.graphType[cid]) DB.graphType[cid]='bar';
   if(!DB.gifts[cid]) DB.gifts[cid]={};
-  if(!DB.selection[cid]) DB.selection[cid]={targetType:'student', targetId:null, points:10, quizId:null};
+  if(!DB.selection[cid]) DB.selection[cid]={targetType:'student', targetId:null, points:10, quizId:null, brushValue:null};
   if(DB.teamsEnabled[cid]===undefined) DB.teamsEnabled[cid]=false;
   if(!DB.teams[cid]) DB.teams[cid]=[];
   if(!DB.studentTeam[cid]) DB.studentTeam[cid]={};

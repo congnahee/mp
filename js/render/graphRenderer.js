@@ -1,4 +1,7 @@
 "use strict";
+/* ============================================================
+   GRAPH RENDERER — swappable visualization, reads scores only
+============================================================ */
 const GraphRenderer = {
   prevRanks: {},
   render(cid){
@@ -31,10 +34,6 @@ const GraphRenderer = {
     const dockEl = $('#dock');
     if(dockEl) dockEl.style.display = (type==='ladder') ? 'none' : '';
   },
-};
-
-"use strict";
-Object.assign(GraphRenderer,{
   bar(area, ranked, rankChanges){
     if(area.dataset.mode!=='bar'){ area.innerHTML=''; area.dataset.mode='bar'; }
     const n = ranked.length;
@@ -45,6 +44,7 @@ Object.assign(GraphRenderer,{
     // 막대폭이 상한(220px)에 걸려도 화면 오른쪽이 비지 않도록,
     // 남는 여백은 막대 사이 간격으로 고르게 분산해서 항상 컨테이너 전체 너비를 채운다.
     const gap = Math.max(minGap, (W - bw*n) / (n+1));
+    const maxAbs = Math.max(10, ...ranked.map(r=>Math.max(r.score,0)));
     const zoneH = H - 60;
     ranked.forEach((r,i)=>{
       let el = area.querySelector(`[data-sid="${r.id}"]`);
@@ -65,11 +65,7 @@ Object.assign(GraphRenderer,{
       const fill = el.querySelector('.bar-fill');
       // 음수 점수는 막대를 거의 바닥(최소 높이)으로 표시해서 "점수가 있는 것처럼" 보이지 않게 한다.
       // 숫자 라벨에는 실제 값(-10 등)을 그대로 보여준다.
-      // Each bar depends only on its own score. A shared maximum makes every
-      // other team's bar shrink when the leader gains points. The curve keeps
-      // growing above 100 without an abrupt rescale or a hard ceiling.
-      const positiveScore = Math.max(r.score, 0);
-      const heightPx = Math.max(4, zoneH * 0.85 * positiveScore / (positiveScore + 100));
+      const heightPx = clamp(Math.max(r.score,0)/maxAbs * (zoneH*0.85), 4, zoneH);
       const prevScore = fill.dataset.score;
       if(isNew){
         // 방금 생긴 막대는 "이전 상태"가 없어서 CSS transition이 못 타고 바로
@@ -108,10 +104,6 @@ Object.assign(GraphRenderer,{
       if(el.dataset.sid && !ranked.find(r=>r.id===el.dataset.sid)) el.remove();
     });
   },
-});
-
-"use strict";
-Object.assign(GraphRenderer,{
   race(area, ranked, rankChanges){
     if(area.dataset.mode!=='race'){ area.innerHTML=''; area.dataset.mode='race'; }
     const n = ranked.length;
@@ -119,6 +111,7 @@ Object.assign(GraphRenderer,{
     const H = area.clientHeight, W = area.clientWidth;
     const rowH = clamp((H-10)/Math.max(n,1), 34, 110);
     const trackH = clamp(rowH*0.55, 24, 64);
+    const maxAbs = Math.max(10, ...ranked.map(r=>Math.max(r.score,0)));
     ranked.forEach((r,i)=>{
       let el = area.querySelector(`[data-sid="${r.id}"]`);
       const isNew=!el;
@@ -136,17 +129,15 @@ Object.assign(GraphRenderer,{
       el.querySelector('.race-track').style.height = trackH+'px';
       el.querySelector('.race-name').textContent = r.name;
       const fillEl = el.querySelector('.race-fill');
+      const trackW = W-100;
       // 음수 점수는 트랙을 거의 바닥(최소 너비)으로 표시하고, 숫자는 실제 값을 그대로 보여준다.
-      // Use the same independent score curve as the vertical bars. Another
-      // team's points must not change this row's width.
-      const positiveScore = Math.max(r.score, 0);
-      const pct = Math.max(0.03, 0.85 * positiveScore / (positiveScore + 100));
+      const pct = clamp(Math.max(r.score,0)/maxAbs, 0.03, 1);
       const prevScore = fillEl.dataset.score;
       if(isNew){
-        fillEl.style.width = '3%';
+        fillEl.style.width = (trackW*0.03)+'px';
         void fillEl.offsetWidth;
       }
-      fillEl.style.width = (pct*100)+'%';
+      fillEl.style.width = (trackW*pct)+'px';
       fillEl.dataset.score=r.score;
       if(r.color){
         fillEl.style.background = `linear-gradient(90deg, ${shadeColor(r.color,-25)}, ${r.color})`;
@@ -174,11 +165,6 @@ Object.assign(GraphRenderer,{
       if(el.dataset.sid && !ranked.find(r=>r.id===el.dataset.sid)) el.remove();
     });
   },
-});
-
-
-"use strict";
-Object.assign(GraphRenderer,{
   line(area, ranked, cid, viewMode){
     area.dataset.mode='line';
     const hist = currentHistory(cid);
@@ -234,10 +220,6 @@ Object.assign(GraphRenderer,{
     legend += '</div>';
     area.innerHTML = svg+legend;
   },
-});
-
-"use strict";
-Object.assign(GraphRenderer,{
   donut(area, ranked){
     area.dataset.mode='donut';
     if(ranked.length===0){ area.innerHTML=''; return; }
@@ -262,10 +244,6 @@ Object.assign(GraphRenderer,{
     html += '</div>';
     area.innerHTML = html;
   },
-});
-
-"use strict";
-Object.assign(GraphRenderer,{
   mood(area, cid){
     // bar()/race()와 같은 방식으로 기존 DOM을 재사용해서, 값이 바뀔 때
     // 매번 새로 그리지 않고 CSS transition으로 부드럽게 오르내리게 한다.
@@ -328,11 +306,6 @@ Object.assign(GraphRenderer,{
       if(col.dataset.sid && !students.find(s=>s.id===col.dataset.sid)) col.remove();
     });
   },
-});
-
-
-"use strict";
-Object.assign(GraphRenderer,{
   burst(studentId, positive){
     const el = document.querySelector(`[data-sid="${studentId}"]`);
     if(!el) return;
@@ -357,20 +330,4 @@ Object.assign(GraphRenderer,{
       }
     }
   }
-});
-
-"use strict";
-const GraphFeature={
-  render(cid){if(cid)GraphRenderer.render(cid);},
-  init(){
-    $('#graphSwitch').onclick=e=>{const b=e.target.closest('.icon-btn'),cid=DB.activeClassId;if(!b||!cid)return;DB.graphType[cid]=b.dataset.g;persistAndRender();};
-    $('#present-fab').onclick=()=>{$('#app').classList.add('present-mode');if(DB.activeClassId)requestAnimationFrame(()=>GraphRenderer.render(DB.activeClassId));};
-    $('#presentExitBtn').onclick=()=>{$('#app').classList.remove('present-mode');if(DB.activeClassId)requestAnimationFrame(()=>GraphRenderer.render(DB.activeClassId));};
-    window.addEventListener('resize',()=>{if(DB.activeClassId)GraphRenderer.render(DB.activeClassId);});
-  }
 };
-
-"use strict";
-AppFeatures.register('graphs',{order:60,init:GraphFeature.init,render:GraphFeature.render});
-
-
