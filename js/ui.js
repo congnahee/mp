@@ -24,12 +24,28 @@ function render(){
     const brushVal = DB.selection[cid].brushValue;
     $$('#brushRow button[data-v]').forEach(b=>b.classList.toggle('active', Number(b.dataset.v)===brushVal));
     $('#brushRow').classList.toggle('armed', brushVal!==null && brushVal!==undefined);
+    updateUndoRedoButtons(cid);
   } else {
     $('#graphArea').innerHTML='';
     $('#modeSwitch').style.display='none';
+    updateUndoRedoButtons(null);
   }
   renderSettingsLists();
 }
+function updateUndoRedoButtons(cid){
+  const u = $('#undoBtn'), r = $('#redoBtn');
+  if(!u || !r) return;
+  u.disabled = !(cid && ScoreEngine.canUndo(cid));
+  r.disabled = !(cid && ScoreEngine.canRedo(cid));
+}
+$('#undoBtn').onclick=()=>{
+  const cid = DB.activeClassId; if(!cid) return;
+  ScoreEngine.undoLast(cid);
+};
+$('#redoBtn').onclick=()=>{
+  const cid = DB.activeClassId; if(!cid) return;
+  ScoreEngine.redo(cid);
+};
 function renderClassInfoChip(cid){
   const chip = $('#classInfoChip');
   if(!chip) return;
@@ -155,11 +171,15 @@ function renderTargetStrip(cid){
   const strip = $('#studentStrip'); strip.innerHTML='';
   const sel = DB.selection[cid];
   if(sel.targetType==='team' && DB.teamsEnabled[cid]){
-    const teams = RankingModule.computeTeams(cid);
-    teams.forEach(t=>{
+    // 칩 순서는 팀 등록 순서로 고정한다 (그래프는 순위대로 움직이지만, 채점 버튼이
+    // 점수에 따라 자리를 바꾸면 누르다가 위치가 달라져서 헷갈린다).
+    // 점수만 순위 계산 결과에서 가져와서 표시한다.
+    const scoreById = {};
+    RankingModule.computeTeams(cid).forEach(t=>{ scoreById[t.id] = t.score; });
+    (DB.teams[cid]||[]).forEach(t=>{
       const chip=document.createElement('div');
       chip.className='stu-chip'+(sel.targetId===t.id?' selected':'');
-      chip.innerHTML = `<div>👥 ${t.name}</div><div class="s num">${t.score}</div>`;
+      chip.innerHTML = `<div>👥 ${t.name}</div><div class="s num">${scoreById[t.id]||0}</div>`;
       attachChipGesture(chip, cid, 'team', t.id);
       strip.appendChild(chip);
     });

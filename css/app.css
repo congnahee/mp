@@ -204,6 +204,8 @@
   .brush-row button.active[data-v^="-"]{background:var(--loss);border-color:var(--loss);box-shadow:0 0 14px var(--loss-glow);}
   .brush-row button.off{color:var(--text-dim2);border-style:dashed;display:none;}
   .brush-row.armed button.off{display:block;}
+  .brush-row #undoBtn,.brush-row #redoBtn{font-family:'Noto Sans KR',sans-serif;color:var(--text);}
+  .brush-row button:disabled{opacity:.35;cursor:default;}
 
   /* 스와이프 채점: 학생/팀 칩을 오른쪽으로 밀면 정답, 왼쪽으로 밀면 오답 */
   .stu-chip{touch-action:pan-y;}
