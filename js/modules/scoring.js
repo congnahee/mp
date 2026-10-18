@@ -1,13 +1,37 @@
 "use strict";
 const ScoreEngine={
-  apply(cid,targetType,targetId,delta,note){const p=activePeriod(cid);if(!p){uiAlert('먼저 기간을 시작해주세요 (설정 > 기간 관리)');return;}const pool=targetType==='team'?currentTeamScores(cid):currentScores(cid);pool[targetId]=(pool[targetId]||0)+delta;currentHistory(cid).push({id:uid(),targetType,targetId,delta,ts:Date.now(),note:note||''});persistAndRender();return pool[targetId];},
-  editHistoryEntry(cid,entryId,newDelta){const hist=currentHistory(cid),entry=hist.find(h=>h.id===entryId);if(!entry)return;const pool=entry.targetType==='team'?currentTeamScores(cid):currentScores(cid);pool[entry.targetId]=(pool[entry.targetId]||0)-entry.delta+newDelta;entry.delta=newDelta;persistAndRender();},
-  removeHistoryEntry(cid,entryId){const hist=currentHistory(cid),idx=hist.findIndex(h=>h.id===entryId);if(idx<0)return;const entry=hist[idx],pool=entry.targetType==='team'?currentTeamScores(cid):currentScores(cid);pool[entry.targetId]=(pool[entry.targetId]||0)-entry.delta;hist.splice(idx,1);persistAndRender();},
+  apply(cid,targetType,targetId,delta,note,meta){
+    const p=activePeriod(cid);if(!p){uiAlert('먼저 기간을 시작해주세요 (설정 > 기간 관리)');return;}
+    const pool=targetType==='team'?currentTeamScores(cid):currentScores(cid),ts=Date.now();
+    pool[targetId]=(pool[targetId]||0)+delta;
+    const historyEntry={id:uid(),targetType,targetId,delta,ts,note:note||''};
+    currentHistory(cid).push(historyEntry);
+    StudentActivity.recordForTarget(cid,targetType,targetId,'score',{
+      activityRef:historyEntry.id,source:meta?.source||'manual',delta,balance:pool[targetId],note:note||'',
+      periodId:p.id,periodLabel:p.label||'',quizId:meta?.quizId||null,quizTitle:meta?.quizTitle||'',
+      questionId:meta?.questionId||null,questionText:meta?.questionText||'',correct:meta?.correct??null
+    },{at:ts});
+    persistAndRender();return pool[targetId];
+  },
+  editHistoryEntry(cid,entryId,newDelta){
+    const hist=currentHistory(cid),entry=hist.find(h=>h.id===entryId);if(!entry)return;
+    const pool=entry.targetType==='team'?currentTeamScores(cid):currentScores(cid),oldDelta=entry.delta,p=activePeriod(cid);
+    pool[entry.targetId]=(pool[entry.targetId]||0)-oldDelta+newDelta;entry.delta=newDelta;
+    StudentActivity.recordForTarget(cid,entry.targetType,entry.targetId,'score_edit',{activityRef:entry.id,oldDelta,newDelta,balance:pool[entry.targetId],note:entry.note||'',periodId:p?.id||null,periodLabel:p?.label||''});
+    persistAndRender();
+  },
+  removeHistoryEntry(cid,entryId){
+    const hist=currentHistory(cid),idx=hist.findIndex(h=>h.id===entryId);if(idx<0)return;
+    const entry=hist[idx],pool=entry.targetType==='team'?currentTeamScores(cid):currentScores(cid),p=activePeriod(cid);
+    pool[entry.targetId]=(pool[entry.targetId]||0)-entry.delta;hist.splice(idx,1);
+    StudentActivity.recordForTarget(cid,entry.targetType,entry.targetId,'score_cancel',{activityRef:entry.id,cancelledDelta:entry.delta,balance:pool[entry.targetId],note:entry.note||'',periodId:p?.id||null,periodLabel:p?.label||''});
+    persistAndRender();
+  },
   currentPoints(cid){const sel=DB.selection[cid],q=typeof QuizModule!=='undefined'?QuizModule.liveQuiz(cid):null,cur=q?q.questions[q.currentIndex]:null;return(q&&q.mode==='B'&&cur)?cur.points:sel.points;},
-  grade(cid,targetType,targetId,delta,note){ScoreEngine.apply(cid,targetType,targetId,delta,note);requestAnimationFrame(()=>GraphRenderer.burst(targetId,delta>=0));},
+  grade(cid,targetType,targetId,delta,note,meta){ScoreEngine.apply(cid,targetType,targetId,delta,note,meta);requestAnimationFrame(()=>GraphRenderer.burst(targetId,delta>=0));},
   select(cid,targetType,targetId){if(DB.activeClassId!==cid)return;DB.selection[cid].targetType=targetType;DB.selection[cid].targetId=targetId;render();},
   setPoints(value){const cid=DB.activeClassId;if(!cid)return;const parsed=Number(value);if(!Number.isFinite(parsed)){$('#ptVal').value=DB.selection[cid].points;return;}DB.selection[cid].points=clamp(Math.round(parsed),1,100);$('#ptVal').value=DB.selection[cid].points;},
-  scoreAction(correct){const cid=DB.activeClassId;if(!cid)return;const sel=DB.selection[cid];if(!sel.targetId)return;const q=typeof QuizModule!=='undefined'?QuizModule.liveQuiz(cid):null,cur=q?q.questions[q.currentIndex]:null,pts=ScoreEngine.currentPoints(cid);ScoreEngine.grade(cid,sel.targetType,sel.targetId,correct?pts:-pts,cur?cur.text:'즉석채점');}
+  scoreAction(correct){const cid=DB.activeClassId;if(!cid)return;const sel=DB.selection[cid];if(!sel.targetId)return;const q=typeof QuizModule!=='undefined'?QuizModule.liveQuiz(cid):null,cur=q?q.questions[q.currentIndex]:null,pts=ScoreEngine.currentPoints(cid);ScoreEngine.grade(cid,sel.targetType,sel.targetId,correct?pts:-pts,cur?cur.text:'즉석채점',{source:q?'quiz':'instant',quizId:q?.id||null,quizTitle:q?.title||'',questionId:cur?.id||null,questionText:cur?.text||'',correct});}
 };
 
 "use strict";

@@ -19,7 +19,7 @@ const GiftLadder = {
     const active = sets.find(s=>s.id===activeId) || sets[0];
     const lanes = ranked.length;
     GiftLadder.container = container;
-    GiftLadder.state = {lanes, ranked, gifts: (active&&active.gifts)||{}};
+    GiftLadder.state = {lanes, ranked, gifts: (active&&active.gifts)||{},targetType:useTeam?'team':'student'};
     container.innerHTML = `
       ${teamsAvailable ? `<div class="chip-tabs" data-ladder="basisToggle">
         <button type="button" data-basis="student" class="${!useTeam?'active':''}">🙋 학생별</button>
@@ -130,6 +130,8 @@ const GiftLadder = {
       if(i>=path.length){
         const gifts = GiftLadder.state.gifts || {};
         const finalGift = gifts[ranked[lane]?.rank] || gifts[lane+1] || '축하해요! 🎉';
+        const cid=DB.activeClassId,participant=ranked[startLane],resultRank=ranked[lane]?.rank||lane+1,set=cid&&activeGiftSet(cid),targetType=GiftLadder.state.targetType||'student';
+        if(cid&&participant){StudentActivity.recordForTarget(cid,targetType,participant.id,'ladder',{giftSetId:set?.id||null,giftSetName:set?.name||'',gift:finalGift,startRank:participant.rank||startLane+1,resultRank,startLane,finishLane:lane});scheduleSave();}
         c.querySelector('[data-ladder="result"]').innerHTML = `<div class="gift-reveal"><div class="display">${ranked[startLane].name}님 결과</div>
           <div style="font-size:34px;margin:10px 0;">🎁</div><div class="num" style="font-size:18px;color:var(--gold);">${finalGift}</div></div>`;
         return;

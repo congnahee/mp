@@ -25,7 +25,8 @@ let DB = {
   theme: 'dark',                            // 'dark'|'light' — 전역 화면 테마
   moodLogs: {},                              // classId -> 'YYYY-MM-DD' -> studentId -> {before:0~10|null, after:0~10|null}
   polls: {},                                 // classId -> [{id,title,questions,createdAt,updatedAt}]
-  pollSessions: {}                           // classId -> [{id,code,pollId,pollSnapshot,mode,status,responses,...}]
+  pollSessions: {},                          // classId -> [{id,code,pollId,pollSnapshot,mode,status,responses,...}]
+  studentActivity: {}                        // classId -> studentId -> [{id,type,at,date,...}] (학생 통합 보고서용)
 };
 
 function activeClass(){ return DB.classes.find(c=>c.id===DB.activeClassId); }
@@ -34,6 +35,7 @@ function ensureClassData(cid){
   // 아직 존재하지 않을 수 있다. 기존 데이터는 그대로 두고 빈 맵만 보완한다.
   if(!DB.polls) DB.polls={};
   if(!DB.pollSessions) DB.pollSessions={};
+  if(!DB.studentActivity) DB.studentActivity={};
   if(!DB.students[cid]) DB.students[cid]=[];
   if(!DB.periods[cid]) DB.periods[cid]=[];
   if(!DB.scores[cid]) DB.scores[cid]={};
@@ -50,6 +52,7 @@ function ensureClassData(cid){
   if(!DB.moodLogs[cid]) DB.moodLogs[cid]={};
   if(!DB.polls[cid]) DB.polls[cid]=[];
   if(!DB.pollSessions[cid]) DB.pollSessions[cid]=[];
+  if(!DB.studentActivity[cid]) DB.studentActivity[cid]={};
   if(!DB.giftSets[cid] || DB.giftSets[cid].length===0){
     // 구버전 DB.gifts[cid]에 값이 있으면 "기본 세트"로 그대로 이어받는다
     const legacy = DB.gifts[cid] || {};
@@ -61,6 +64,41 @@ function ensureClassData(cid){
     DB.activeGiftSetId[cid] = DB.giftSets[cid][0].id;
   }
 }
+
+/* ============================================================
+   STUDENT ACTIVITY — 학생별 통합 이력
+   기존 점수/기분/설문/선물 원본 데이터는 그대로 유지하고,
+   향후 학생별 보고서에서 한 번에 조회할 수 있는 연결 기록만 쌓는다.
+============================================================ */
+const StudentActivity={
+  dateKey(ts){return formatDateYMD(new Date(ts||Date.now()));},
+  list(cid,studentId){ensureClassData(cid);return DB.studentActivity[cid][studentId]||[];},
+  record(cid,studentId,type,data,options){
+    if(!cid||!studentId||!type)return null;
+    ensureClassData(cid);
+    if(!DB.studentActivity[cid][studentId])DB.studentActivity[cid][studentId]=[];
+    const at=options?.at||Date.now(),student=(DB.students[cid]||[]).find(s=>s.id===studentId);
+    const event={id:uid(),type,at,date:options?.date||StudentActivity.dateKey(at),studentId,studentName:student?.name||'',...(data||{})};
+    DB.studentActivity[cid][studentId].push(event);
+    return event;
+  },
+  upsert(cid,studentId,key,type,data,options){
+    if(!key)return StudentActivity.record(cid,studentId,type,data,options);
+    const list=StudentActivity.list(cid,studentId),at=options?.at||Date.now();
+    let event=list.find(item=>item.key===key);
+    if(event){Object.assign(event,data||{}, {type,at,date:options?.date||StudentActivity.dateKey(at)});return event;}
+    event=StudentActivity.record(cid,studentId,type,{key,...(data||{})},{...(options||{}),at});
+    return event;
+  },
+  studentIdsForTarget(cid,targetType,targetId){
+    if(targetType==='team')return (DB.students[cid]||[]).filter(s=>DB.studentTeam[cid]?.[s.id]===targetId).map(s=>s.id);
+    return targetId?[targetId]:[];
+  },
+  recordForTarget(cid,targetType,targetId,type,data,options){
+    const team=targetType==='team'?(DB.teams[cid]||[]).find(t=>t.id===targetId):null;
+    return StudentActivity.studentIdsForTarget(cid,targetType,targetId).map(studentId=>StudentActivity.record(cid,studentId,type,{targetType,targetId,teamId:team?.id||null,teamName:team?.name||'',...(data||{})},options));
+  }
+};
 function activeGiftSet(cid){
   const sets = DB.giftSets[cid]||[];
   return sets.find(s=>s.id===DB.activeGiftSetId[cid]) || sets[0] || null;

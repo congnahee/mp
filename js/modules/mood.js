@@ -1,6 +1,6 @@
 "use strict";
 const MoodModule={
-  setScore(cid,dateStr,studentId,timing,value){ensureClassData(cid);if(!DB.moodLogs[cid][dateStr])DB.moodLogs[cid][dateStr]={};if(!DB.moodLogs[cid][dateStr][studentId])DB.moodLogs[cid][dateStr][studentId]={before:null,after:null};DB.moodLogs[cid][dateStr][studentId][timing]=value;scheduleSave();},
+  setScore(cid,dateStr,studentId,timing,value){ensureClassData(cid);if(!DB.moodLogs[cid][dateStr])DB.moodLogs[cid][dateStr]={};if(!DB.moodLogs[cid][dateStr][studentId])DB.moodLogs[cid][dateStr][studentId]={before:null,after:null};const previousValue=DB.moodLogs[cid][dateStr][studentId][timing];DB.moodLogs[cid][dateStr][studentId][timing]=value;StudentActivity.upsert(cid,studentId,`mood:${dateStr}:${timing}`,'mood',{moodDate:dateStr,timing,value,previousValue:previousValue??null},{date:dateStr});scheduleSave();},
   getScore(cid,dateStr,studentId,timing){const day=(DB.moodLogs[cid]||{})[dateStr];if(!day||!day[studentId])return null;const v=day[studentId][timing];return v===undefined?null:v;},
   getDay(cid,dateStr){return(DB.moodLogs[cid]||{})[dateStr]||{};},
   availableDates(cid){return Object.keys(DB.moodLogs[cid]||{}).sort().reverse();}

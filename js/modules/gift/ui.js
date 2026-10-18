@@ -14,6 +14,8 @@ const GiftUI = {
   },
   reveal(){
     const cid=DB.activeClassId;if(!cid)return;const ranked=RankingModule.current(cid);if(!ranked.length){uiAlert('발표할 순위가 없어요.');return;}const winner=ranked[0],p=activePeriod(cid),set=activeGiftSet(cid);
+    const targetType=(DB.teamsEnabled[cid]&&DB.viewMode[cid]==='team')?'team':'student',gift=set?.gifts?.[1]||'';
+    StudentActivity.studentIdsForTarget(cid,targetType,winner.id).forEach(studentId=>StudentActivity.upsert(cid,studentId,`winner:${p?.id||'none'}:${winner.id}`,'winner',{targetType,targetId:winner.id,periodId:p?.id||null,periodLabel:p?.label||'',score:winner.score,giftSetId:set?.id||null,giftSetName:set?.name||'',gift}));scheduleSave();
     $('#winnerPeriodLabel').textContent=p?p.label:'';$('#winnerName').textContent=winner.name.replace('👥 ','');$('#winnerPoints').textContent=winner.score+' POINTS';$('#winnerGift').textContent=set&&set.gifts&&set.gifts[1]?'🎁 '+set.gifts[1]:'';$('#winnerOverlay').classList.add('open');GiftUI.startFireworks();
   },
   closeReveal(){$('#winnerOverlay').classList.remove('open');GiftUI.stopFireworks();},

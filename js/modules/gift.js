@@ -50,7 +50,7 @@ const GiftLadder = {
     const active = sets.find(s=>s.id===activeId) || sets[0];
     const lanes = ranked.length;
     GiftLadder.container = container;
-    GiftLadder.state = {lanes, ranked, gifts: (active&&active.gifts)||{}};
+    GiftLadder.state = {lanes, ranked, gifts: (active&&active.gifts)||{},targetType:useTeam?'team':'student'};
     container.innerHTML = `
       ${teamsAvailable ? `<div class="chip-tabs" data-ladder="basisToggle">
         <button type="button" data-basis="student" class="${!useTeam?'active':''}">🙋 학생별</button>
@@ -161,6 +161,8 @@ const GiftLadder = {
       if(i>=path.length){
         const gifts = GiftLadder.state.gifts || {};
         const finalGift = gifts[ranked[lane]?.rank] || gifts[lane+1] || '축하해요! 🎉';
+        const cid=DB.activeClassId,participant=ranked[startLane],resultRank=ranked[lane]?.rank||lane+1,set=cid&&activeGiftSet(cid),targetType=GiftLadder.state.targetType||'student';
+        if(cid&&participant){StudentActivity.recordForTarget(cid,targetType,participant.id,'ladder',{giftSetId:set?.id||null,giftSetName:set?.name||'',gift:finalGift,startRank:participant.rank||startLane+1,resultRank,startLane,finishLane:lane});scheduleSave();}
         c.querySelector('[data-ladder="result"]').innerHTML = `<div class="gift-reveal"><div class="display">${ranked[startLane].name}님 결과</div>
           <div style="font-size:34px;margin:10px 0;">🎁</div><div class="num" style="font-size:18px;color:var(--gold);">${finalGift}</div></div>`;
         return;
@@ -190,6 +192,8 @@ const GiftUI = {
   },
   reveal(){
     const cid=DB.activeClassId;if(!cid)return;const ranked=RankingModule.current(cid);if(!ranked.length){uiAlert('발표할 순위가 없어요.');return;}const winner=ranked[0],p=activePeriod(cid),set=activeGiftSet(cid);
+    const targetType=(DB.teamsEnabled[cid]&&DB.viewMode[cid]==='team')?'team':'student',gift=set?.gifts?.[1]||'';
+    StudentActivity.studentIdsForTarget(cid,targetType,winner.id).forEach(studentId=>StudentActivity.upsert(cid,studentId,`winner:${p?.id||'none'}:${winner.id}`,'winner',{targetType,targetId:winner.id,periodId:p?.id||null,periodLabel:p?.label||'',score:winner.score,giftSetId:set?.id||null,giftSetName:set?.name||'',gift}));scheduleSave();
     $('#winnerPeriodLabel').textContent=p?p.label:'';$('#winnerName').textContent=winner.name.replace('👥 ','');$('#winnerPoints').textContent=winner.score+' POINTS';$('#winnerGift').textContent=set&&set.gifts&&set.gifts[1]?'🎁 '+set.gifts[1]:'';$('#winnerOverlay').classList.add('open');GiftUI.startFireworks();
   },
   closeReveal(){$('#winnerOverlay').classList.remove('open');GiftUI.stopFireworks();},

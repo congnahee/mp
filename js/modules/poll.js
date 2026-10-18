@@ -17,6 +17,7 @@ const PollModule={
   },
   esc(value){return String(value??'').replace(/[&<>'"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));},
   clone(value){return JSON.parse(JSON.stringify(value));},
+  dateKey(ts){return formatDateYMD(new Date(ts||Date.now()));},
   emptyPoll(){return{id:uid(),title:'',questions:[{id:uid(),text:'',options:[{id:uid(),text:''},{id:uid(),text:''},{id:uid(),text:''},{id:uid(),text:''}]}],createdAt:Date.now(),updatedAt:Date.now()};},
   sessions(cid){ensureClassData(cid);return DB.pollSessions[cid]||[];},
   polls(cid){ensureClassData(cid);return DB.polls[cid]||[];},
@@ -70,13 +71,14 @@ const PollModule={
   },
   renderLibrary(cid){
     const panel=$('#pollPanel'),polls=PollModule.polls(cid);
-    let html=`<div class="poll-actions" style="justify-content:space-between;margin:0 0 12px"><div class="hint">질문과 선택지는 선생님이 직접 만들고 학생별로 저장할 수 있어요.</div><button class="primary-btn" id="pollNewBtn">＋ 새 설문</button></div>`;
+    let html=`<div class="poll-actions" style="justify-content:space-between;margin:0 0 12px"><div class="hint">질문은 한 번 저장해두고 매일 다시 실시할 수 있으며, 결과는 날짜별·학생별로 누적됩니다.</div><button class="primary-btn" id="pollNewBtn">＋ 새 설문</button></div>`;
     if(!polls.length)html+='<div class="poll-empty">아직 만든 설문이 없습니다.<br>새 설문을 만들어보세요.</div>';
-    else html+=polls.slice().sort((a,b)=>b.updatedAt-a.updatedAt).map(p=>`<div class="poll-card"><div class="poll-card-title"><span>📋 ${PollModule.esc(p.title||'제목 없는 설문')}</span><span class="spacer"></span><span class="poll-chip">${p.questions.length}문항</span></div><div class="poll-meta">최근 수정 ${new Date(p.updatedAt||p.createdAt).toLocaleString('ko-KR')}</div><div class="poll-actions"><button class="ghost-btn" data-poll-edit="${p.id}">수정</button><button class="ghost-btn poll-danger" data-poll-delete="${p.id}">삭제</button><button class="primary-btn" data-poll-start="${p.id}">참여 방식 선택</button></div></div>`).join('');
+    else html+=polls.slice().sort((a,b)=>b.updatedAt-a.updatedAt).map(p=>{const runs=PollModule.sessions(cid).filter(s=>s.pollId===p.id),last=runs.slice().sort((a,b)=>b.startedAt-a.startedAt)[0];return `<div class="poll-card"><div class="poll-card-title"><span>📋 ${PollModule.esc(p.title||'제목 없는 설문')}</span><span class="spacer"></span><span class="poll-chip">${p.questions.length}문항</span><span class="poll-chip">누적 ${runs.length}회</span></div><div class="poll-meta">최근 수정 ${new Date(p.updatedAt||p.createdAt).toLocaleString('ko-KR')}${last?` · 최근 실시 ${new Date(last.startedAt).toLocaleDateString('ko-KR')}`:''}</div><div class="poll-actions"><button class="ghost-btn" data-poll-edit="${p.id}">수정</button><button class="ghost-btn poll-danger" data-poll-delete="${p.id}">삭제</button><button class="ghost-btn" data-poll-start="${p.id}">참여 방식 선택</button><button class="primary-btn" data-poll-repeat="${p.id}">${runs.length?'오늘 다시 실시':'바로 실시'}</button></div></div>`;}).join('');
     panel.innerHTML=html;
     $('#pollNewBtn').onclick=()=>{PollModule.draft=PollModule.emptyPoll();PollModule.selectedMode='shared_number';PollModule.tab='builder';PollModule.render(cid);};
     panel.querySelectorAll('[data-poll-edit]').forEach(b=>b.onclick=()=>{const p=polls.find(x=>x.id===b.dataset.pollEdit);PollModule.draft=PollModule.clone(p);PollModule.tab='builder';PollModule.render(cid);});
     panel.querySelectorAll('[data-poll-start]').forEach(b=>b.onclick=()=>{const p=polls.find(x=>x.id===b.dataset.pollStart);PollModule.draft=PollModule.clone(p);PollModule.selectedMode='shared_number';PollModule.tab='builder';PollModule.render(cid);});
+    panel.querySelectorAll('[data-poll-repeat]').forEach(b=>b.onclick=()=>PollModule.confirmRepeat(cid,b.dataset.pollRepeat));
     panel.querySelectorAll('[data-poll-delete]').forEach(b=>b.onclick=()=>uiConfirm('이 설문을 삭제할까요? 지난 발송 결과는 유지됩니다.',()=>{DB.polls[cid]=polls.filter(x=>x.id!==b.dataset.pollDelete);persistAndRender();PollModule.render(cid);}));
   },
   renderBuilder(cid){
@@ -134,9 +136,19 @@ const PollModule={
   launch(cid,pollId,mode){
     const poll=PollModule.polls(cid).find(p=>p.id===pollId);if(!poll)return;
     PollModule.sessions(cid).forEach(s=>{if(s.status==='live'){s.status='ended';s.endedAt=Date.now();}});
-    const session={id:uid(),code:PollModule.makeCode(cid),pollId,pollSnapshot:PollModule.clone(poll),mode,status:'live',responses:{},createdAt:Date.now(),startedAt:Date.now(),endedAt:null,adminToken:uid()+uid()};
+    const startedAt=Date.now(),session={id:uid(),code:PollModule.makeCode(cid),pollId,pollSnapshot:PollModule.clone(poll),mode,status:'live',responses:{},sessionDate:PollModule.dateKey(startedAt),createdAt:startedAt,startedAt,endedAt:null,adminToken:uid()+uid()};
     DB.pollSessions[cid].push(session);PollModule.activeSessionId=session.id;PollModule.assistStudentId=(DB.students[cid]||[])[0]?.id||null;
     PollModule.publishLocal(cid,session);PollModule.publishRemote(cid,session);scheduleSave();PollModule.tab='live';PollModule.render(cid);
+  },
+  confirmRepeat(cid,pollId,preferredMode){
+    const poll=PollModule.polls(cid).find(p=>p.id===pollId);if(!poll)return;
+    const last=PollModule.sessions(cid).filter(s=>s.pollId===pollId).sort((a,b)=>b.startedAt-a.startedAt)[0],mode=preferredMode||last?.mode||'teacher';
+    uiConfirm(`'${poll.title}' 설문을 오늘의 새 기록으로 시작할까요? 이전 결과는 그대로 보존됩니다.`,()=>PollModule.launch(cid,poll.id,mode));
+  },
+  repeatSession(cid,session){
+    let poll=PollModule.polls(cid).find(p=>p.id===session.pollId);
+    if(!poll){poll=PollModule.clone(session.pollSnapshot);poll.id=uid();poll.createdAt=Date.now();poll.updatedAt=Date.now();PollModule.polls(cid).push(poll);scheduleSave();}
+    PollModule.confirmRepeat(cid,poll.id,session.mode);
   },
   publicSession(cid,session){
     return{id:session.id,code:session.code,title:session.pollSnapshot.title,className:activeClass()?.name||'MP 수업',mode:session.mode,status:session.status,questions:session.pollSnapshot.questions.map(q=>({id:q.id,text:q.text,options:q.options})),students:(DB.students[cid]||[]).map((s,i)=>({id:s.id,number:i+1})),startedAt:session.startedAt};
@@ -162,7 +174,7 @@ const PollModule={
   renderLive(cid){
     const panel=$('#pollPanel'),s=PollModule.activeSession(cid);
     if(!s){panel.innerHTML='<div class="poll-empty">진행 중인 설문이 없습니다.<br><button class="primary-btn" id="pollGoLibrary" style="margin-top:12px">설문 선택</button></div>';$('#pollGoLibrary').onclick=()=>{PollModule.tab='library';PollModule.render(cid);};return;}
-    PollModule.collectLocalResponses(s);
+    PollModule.collectLocalResponses(cid,s);PollModule.syncStudentResponses(cid,s);
     const students=DB.students[cid]||[],responses=Object.values(s.responses||{}).filter(r=>r.submittedAt),doneIds=new Set(responses.map(r=>r.studentId).filter(Boolean));
     const commonUrl=PollModule.joinUrl(s),mode=PollModule.modes[s.mode]||{title:s.mode,desc:''};
     const methodText=s.mode==='teacher'?'선생님과 함께 선택':`${mode.title} ${mode.desc}`.trim();
@@ -186,7 +198,7 @@ const PollModule={
   bindAssist(cid,s){
     $$('[data-assist-student]').forEach(btn=>btn.onclick=()=>{PollModule.assistStudentId=btn.dataset.assistStudent;PollModule.render(cid);});
     $$('[data-assist-option]').forEach(btn=>btn.onclick=()=>{const sid=PollModule.assistStudentId;if(!s.responses[sid])s.responses[sid]={participantKey:sid,studentId:sid,answers:{},submittedAt:null};s.responses[sid].answers[btn.dataset.assistQ]=btn.dataset.assistOption;PollModule.render(cid);});
-    const save=$('#pollAssistSave');if(save)save.onclick=()=>{const sid=PollModule.assistStudentId,st=(DB.students[cid]||[]).find(x=>x.id===sid);if(!s.responses[sid]||Object.keys(s.responses[sid].answers||{}).length<s.pollSnapshot.questions.length){uiAlert('모든 질문의 답을 선택해주세요.');return;}Object.assign(s.responses[sid],{studentName:st?.name||'',studentNumber:(DB.students[cid]||[]).findIndex(x=>x.id===sid)+1,submittedAt:Date.now()});PollModule.storeLocalResponse(s,s.responses[sid]);PollModule.sendRemoteResponse(s,s.responses[sid]);scheduleSave();PollModule.render(cid);};
+    const save=$('#pollAssistSave');if(save)save.onclick=()=>{const sid=PollModule.assistStudentId,st=(DB.students[cid]||[]).find(x=>x.id===sid);if(!s.responses[sid]||Object.keys(s.responses[sid].answers||{}).length<s.pollSnapshot.questions.length){uiAlert('모든 질문의 답을 선택해주세요.');return;}Object.assign(s.responses[sid],{studentName:st?.name||'',studentNumber:(DB.students[cid]||[]).findIndex(x=>x.id===sid)+1,submittedAt:Date.now()});PollModule.storeLocalResponse(s,s.responses[sid]);PollModule.sendRemoteResponse(s,s.responses[sid]);PollModule.syncStudentResponses(cid,s);scheduleSave();PollModule.render(cid);};
   },
   resultsHTML(cid,s){
     const responses=Object.values(s.responses||{}).filter(r=>r.submittedAt);
@@ -210,13 +222,22 @@ const PollModule={
   renderHistory(cid){
     const panel=$('#pollPanel'),sessions=PollModule.sessions(cid).slice().sort((a,b)=>b.startedAt-a.startedAt);
     if(!sessions.length){panel.innerHTML='<div class="poll-empty">아직 진행한 설문이 없습니다.</div>';return;}
-    panel.innerHTML=sessions.map(s=>`<div class="poll-card"><div class="poll-card-title"><span>${s.status==='live'?'🔴':'📊'} ${PollModule.esc(s.pollSnapshot.title)}</span><span class="spacer"></span><span class="poll-chip">${Object.keys(s.responses||{}).length}명</span></div><div class="poll-meta">${new Date(s.startedAt).toLocaleString('ko-KR')} · ${PollModule.modes[s.mode]?.title||s.mode} · ${s.status==='live'?'진행 중':'종료'}</div><div class="poll-actions"><button class="ghost-btn" data-poll-history="${s.id}">결과 보기</button>${s.status==='live'?`<button class="primary-btn" data-poll-resume="${s.id}">진행 화면</button>`:''}</div></div>`).join('');
+    panel.innerHTML=sessions.map(s=>`<div class="poll-card"><div class="poll-card-title"><span>${s.status==='live'?'🔴':'📊'} ${PollModule.esc(s.pollSnapshot.title)}</span><span class="spacer"></span><span class="poll-chip">${Object.keys(s.responses||{}).length}명</span></div><div class="poll-meta">${new Date(s.startedAt).toLocaleString('ko-KR')} · ${PollModule.modes[s.mode]?.title||s.mode} · ${s.status==='live'?'진행 중':'종료'}</div><div class="poll-actions"><button class="ghost-btn" data-poll-history="${s.id}">결과 보기</button><button class="ghost-btn" data-poll-repeat-session="${s.id}">같은 질문 다시 실시</button>${s.status==='live'?`<button class="primary-btn" data-poll-resume="${s.id}">진행 화면</button>`:''}</div></div>`).join('');
     panel.querySelectorAll('[data-poll-history]').forEach(btn=>btn.onclick=()=>{PollModule.activeSessionId=btn.dataset.pollHistory;PollModule.renderResponseDetail(cid,PollModule.activeSession(cid));});
     panel.querySelectorAll('[data-poll-resume]').forEach(btn=>btn.onclick=()=>{PollModule.activeSessionId=btn.dataset.pollResume;PollModule.tab='live';PollModule.render(cid);});
+    panel.querySelectorAll('[data-poll-repeat-session]').forEach(btn=>btn.onclick=()=>{const session=sessions.find(s=>s.id===btn.dataset.pollRepeatSession);if(session)PollModule.repeatSession(cid,session);});
   },
   storeLocalResponse(s,response){try{localStorage.setItem(`mp-poll-response-${s.code}-${response.participantKey}`,JSON.stringify(response));}catch(e){}PollModule.broadcast({type:'response',code:s.code});},
-  collectLocalResponses(s){
+  collectLocalResponses(cid,s){
     try{const prefix=`mp-poll-response-${s.code}-`;for(let i=0;i<localStorage.length;i++){const key=localStorage.key(i);if(!key||!key.startsWith(prefix))continue;const r=JSON.parse(localStorage.getItem(key));if(r&&r.participantKey)s.responses[r.participantKey]=r;}}catch(e){}
+    PollModule.syncStudentResponses(cid,s);
+  },
+  syncStudentResponses(cid,s){
+    if(!cid||!s)return;
+    Object.values(s.responses||{}).filter(r=>r?.studentId&&r.submittedAt).forEach(r=>{
+      const answers=s.pollSnapshot.questions.map(q=>{const option=q.options.find(o=>o.id===r.answers?.[q.id]);return{questionId:q.id,question:q.text,optionId:option?.id||null,answer:option?.text||''};});
+      StudentActivity.upsert(cid,r.studentId,`poll:${s.id}`,'poll_response',{pollId:s.pollId,sessionId:s.id,sessionCode:s.code,pollTitle:s.pollSnapshot.title,sessionDate:s.sessionDate||PollModule.dateKey(s.startedAt),mode:s.mode,answers,submittedAt:r.submittedAt},{at:r.submittedAt,date:s.sessionDate||PollModule.dateKey(s.startedAt)});
+    });
   },
   async sendRemoteResponse(s,response){
     if(!/^https?:$/.test(location.protocol))return;
@@ -224,18 +245,18 @@ const PollModule={
   },
   async refreshSession(s,announce){
     const before=JSON.stringify(s.responses||{});
-    PollModule.collectLocalResponses(s);
+    const cid=DB.activeClassId;PollModule.collectLocalResponses(cid,s);
     if(/^https?:$/.test(location.protocol)){
       try{const res=await fetch(`/api/poll?code=${encodeURIComponent(s.code)}&adminToken=${encodeURIComponent(s.adminToken)}`,{cache:'no-store'});if(res.ok){const data=await res.json();if(data.responses)s.responses={...(s.responses||{}),...data.responses};}}catch(e){}
     }
-    if(before!==JSON.stringify(s.responses||{}))scheduleSave();const cid=DB.activeClassId;if($('#modalPoll').classList.contains('open')&&PollModule.tab==='live')PollModule.render(cid);if(announce)flashSaveStatus('↻ 설문 응답 갱신',false);
+    PollModule.syncStudentResponses(cid,s);if(before!==JSON.stringify(s.responses||{}))scheduleSave();if($('#modalPoll').classList.contains('open')&&PollModule.tab==='live')PollModule.render(cid);if(announce)flashSaveStatus('↻ 설문 응답 갱신',false);
   },
   init(){
     const brand=document.querySelector('.brand-text');if(brand)brand.textContent='MP';
     $('#btnPoll').onclick=()=>PollModule.open();
     if(/^https?:$/.test(location.protocol)&&['127.0.0.1','localhost'].includes(location.hostname))fetch('/api/network',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(data=>{if(data?.addresses?.length){PollModule.networkBase=data.addresses[0];const cid=DB.activeClassId;if(cid&&$('#modalPoll').classList.contains('open'))PollModule.render(cid);}}).catch(()=>{});
-    try{PollModule.channel=new BroadcastChannel('mp-live-poll');PollModule.channel.onmessage=e=>{const cid=DB.activeClassId,s=cid&&PollModule.activeSession(cid);if(s&&e.data?.code===s.code){const before=JSON.stringify(s.responses||{});PollModule.collectLocalResponses(s);if(before!==JSON.stringify(s.responses||{}))scheduleSave();if($('#modalPoll').classList.contains('open'))PollModule.render(cid);}};}catch(e){}
-    window.addEventListener('storage',e=>{const cid=DB.activeClassId,s=cid&&PollModule.activeSession(cid);if(s&&e.key?.startsWith(`mp-poll-response-${s.code}-`)){const before=JSON.stringify(s.responses||{});PollModule.collectLocalResponses(s);if(before!==JSON.stringify(s.responses||{}))scheduleSave();if($('#modalPoll').classList.contains('open'))PollModule.render(cid);}});
+    try{PollModule.channel=new BroadcastChannel('mp-live-poll');PollModule.channel.onmessage=e=>{const cid=DB.activeClassId,s=cid&&PollModule.activeSession(cid);if(s&&e.data?.code===s.code){const before=JSON.stringify(s.responses||{});PollModule.collectLocalResponses(cid,s);if(before!==JSON.stringify(s.responses||{}))scheduleSave();if($('#modalPoll').classList.contains('open'))PollModule.render(cid);}};}catch(e){}
+    window.addEventListener('storage',e=>{const cid=DB.activeClassId,s=cid&&PollModule.activeSession(cid);if(s&&e.key?.startsWith(`mp-poll-response-${s.code}-`)){const before=JSON.stringify(s.responses||{});PollModule.collectLocalResponses(cid,s);if(before!==JSON.stringify(s.responses||{}))scheduleSave();if($('#modalPoll').classList.contains('open'))PollModule.render(cid);}});
   }
 };
 
