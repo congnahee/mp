@@ -133,6 +133,15 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok:true });
     }
 
+    if (action === 'deleteSession') {
+      const code = asText(body.code), adminToken = asText(body.adminToken), key = `poll:${code}`;
+      const record = await redis.get(key);
+      if (!record || !record.session) return res.status(404).json({ error: '설문을 찾지 못했어요' });
+      if (!adminToken || adminToken !== record.adminToken) return res.status(403).json({ error: '관리자 권한이 필요해요' });
+      await redis.del(key);
+      return res.status(200).json({ ok:true });
+    }
+
     return res.status(400).json({ error: '알 수 없는 작업이에요' });
   } catch (error) {
     return res.status(500).json({ error: String(error && error.message || error) });

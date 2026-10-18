@@ -269,10 +269,28 @@ const PollModule={
   renderHistory(cid){
     const panel=$('#pollPanel'),sessions=PollModule.sessions(cid).slice().sort((a,b)=>b.startedAt-a.startedAt);
     if(!sessions.length){panel.innerHTML='<div class="poll-empty">아직 진행한 설문이 없습니다.</div>';return;}
-    panel.innerHTML=sessions.map(s=>`<div class="poll-card"><div class="poll-card-title"><span>${s.status==='live'?'🔴':'📊'} ${PollModule.esc(s.pollSnapshot.title)}</span><span class="spacer"></span><span class="poll-chip">${Object.keys(s.responses||{}).length}명</span></div><div class="poll-meta">${new Date(s.startedAt).toLocaleString('ko-KR')} · ${PollModule.modes[s.mode]?.title||s.mode} · ${s.status==='live'?'진행 중':'종료'}</div><div class="poll-actions"><button class="ghost-btn" data-poll-history="${s.id}">결과 보기</button><button class="ghost-btn" data-poll-repeat-session="${s.id}">같은 질문 다시 실시</button>${s.status==='live'?`<button class="primary-btn" data-poll-resume="${s.id}">진행 화면</button>`:''}</div></div>`).join('');
+    panel.innerHTML=sessions.map(s=>`<div class="poll-card"><div class="poll-card-title"><span>${s.status==='live'?'🔴':'📊'} ${PollModule.esc(s.pollSnapshot.title)}</span><span class="spacer"></span><span class="poll-chip">${Object.keys(s.responses||{}).length}명</span></div><div class="poll-meta">${new Date(s.startedAt).toLocaleString('ko-KR')} · ${PollModule.modes[s.mode]?.title||s.mode} · ${s.status==='live'?'진행 중':'종료'}</div><div class="poll-actions"><button class="ghost-btn" data-poll-history="${s.id}">결과 보기</button><button class="ghost-btn" data-poll-history-edit="${s.id}">수정</button><button class="ghost-btn poll-danger" data-poll-history-delete="${s.id}">삭제</button><button class="ghost-btn" data-poll-repeat-session="${s.id}">같은 질문 다시 실시</button>${s.status==='live'?`<button class="primary-btn" data-poll-resume="${s.id}">진행 화면</button>`:''}</div></div>`).join('');
     panel.querySelectorAll('[data-poll-history]').forEach(btn=>btn.onclick=()=>{PollModule.activeSessionId=btn.dataset.pollHistory;PollModule.renderResponseDetail(cid,PollModule.activeSession(cid));});
+    panel.querySelectorAll('[data-poll-history-edit]').forEach(btn=>btn.onclick=()=>{PollModule.activeSessionId=btn.dataset.pollHistoryEdit;PollModule.renderResponseDetail(cid,PollModule.activeSession(cid));});
+    panel.querySelectorAll('[data-poll-history-delete]').forEach(btn=>btn.onclick=()=>{const session=sessions.find(item=>item.id===btn.dataset.pollHistoryDelete);if(session)PollModule.confirmDeleteSession(cid,session);});
     panel.querySelectorAll('[data-poll-resume]').forEach(btn=>btn.onclick=()=>{PollModule.activeSessionId=btn.dataset.pollResume;PollModule.tab='live';PollModule.render(cid);});
     panel.querySelectorAll('[data-poll-repeat-session]').forEach(btn=>btn.onclick=()=>{const session=sessions.find(s=>s.id===btn.dataset.pollRepeatSession);if(session)PollModule.repeatSession(cid,session);});
+  },
+  confirmDeleteSession(cid,session){
+    uiConfirm(`'${session.pollSnapshot.title}'의 ${new Date(session.startedAt).toLocaleString('ko-KR')} 실시 기록을 삭제할까요? 이 회차의 학생별 설문 답변만 삭제되며 설문 원본은 유지됩니다.`,()=>PollModule.deleteSession(cid,session));
+  },
+  async deleteSession(cid,session){
+    if(!await PollModule.deleteRemoteSession(session)){uiAlert('서버에서 실시 기록을 삭제하지 못했습니다. 잠시 후 다시 시도해주세요.');return;}
+    DB.pollSessions[cid]=PollModule.sessions(cid).filter(item=>item.id!==session.id);
+    (DB.students[cid]||[]).forEach(student=>StudentActivity.removeByKey(cid,student.id,`poll:${session.id}`));
+    try{
+      localStorage.removeItem(`mp-poll-session-${session.code}`);
+      const prefix=`mp-poll-response-${session.code}-`,keys=[];
+      for(let i=0;i<localStorage.length;i++){const key=localStorage.key(i);if(key?.startsWith(prefix))keys.push(key);}
+      keys.forEach(key=>localStorage.removeItem(key));
+    }catch(e){}
+    if(PollModule.activeSessionId===session.id)PollModule.activeSessionId=null;
+    scheduleSave();flashSaveStatus('설문 실시 기록 삭제',false);PollModule.render(cid);
   },
   storeLocalResponse(s,response){try{localStorage.setItem(`mp-poll-response-${s.code}-${response.participantKey}`,JSON.stringify(response));}catch(e){}PollModule.broadcast({type:'response',code:s.code});},
   collectLocalResponses(cid,s){
@@ -297,6 +315,10 @@ const PollModule={
   async deleteRemoteResponse(s,participantKey){
     if(!/^https?:$/.test(location.protocol))return true;
     try{const res=await fetch('/api/poll',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'deleteResponse',code:s.code,adminToken:s.adminToken,participantKey})});return res.ok;}catch(e){return false;}
+  },
+  async deleteRemoteSession(s){
+    if(!/^https?:$/.test(location.protocol))return true;
+    try{const res=await fetch('/api/poll',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'deleteSession',code:s.code,adminToken:s.adminToken})});return res.ok;}catch(e){return false;}
   },
   async refreshSession(s,announce){
     const before=JSON.stringify(s.responses||{});

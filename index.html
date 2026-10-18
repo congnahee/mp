@@ -15,6 +15,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;500;700;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/app.css">
 <link rel="stylesheet" href="css/poll.css">
+<link rel="stylesheet" href="css/report.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
@@ -42,6 +43,7 @@
       <button class="icon-btn" data-m="team" title="팀 모드">👥</button>
     </div>
     <button class="icon-btn" id="btnHistory" title="채점 이력">🕓</button>
+    <button class="icon-btn" id="btnStudentReport" title="학생 개별 보고서">📄</button>
     <button class="icon-btn" id="btnMood" title="기분 온도계">🌡</button>
     <button class="icon-btn" id="btnResetScores" title="현재 기간 점수 초기화">🔄</button>
     <button class="icon-btn" id="btnFullscreen" title="전체화면" style="display:none;">⛶</button>
@@ -261,6 +263,14 @@
     </div>
   </div>
 
+  <!-- ===== STUDENT REPORT MODAL ===== -->
+  <div class="modal-back" id="modalStudentReport">
+    <div class="modal report-modal">
+      <button class="close-x" data-close>×</button>
+      <div id="studentReportRoot"></div>
+    </div>
+  </div>
+
   <!-- ===== HISTORY MODAL ===== -->
   <div class="modal-back" id="modalHistory">
     <div class="modal">
@@ -326,6 +336,7 @@
 <script src="js/modules/scoring.js"></script>
 <script src="js/modules/quiz.js"></script>
 <script src="js/modules/poll.js"></script>
+<script src="js/modules/report.js"></script>
 <script src="js/modules/gift.js"></script>
 <script src="js/render/thermometer.js"></script>
 <script src="js/modules/mood.js"></script>
