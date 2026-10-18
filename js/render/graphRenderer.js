@@ -53,8 +53,8 @@ Object.assign(GraphRenderer,{
         el=document.createElement('div');
         el.className='bar-item';
         el.dataset.sid=r.id;
-        el.innerHTML=`<div class="bar-rank"></div><div class="bar-col"><div class="bar-fill"></div></div>
-          <div class="bar-score num"></div><div class="bar-name"></div>`;
+        el.innerHTML=`<div class="bar-rank"></div><div class="bar-col"><div class="bar-fill"></div><div class="bar-score num"></div></div>
+          <div class="bar-name"></div>`;
         area.appendChild(el);
       }
       const x = gap + i*(bw+gap);
@@ -88,7 +88,11 @@ Object.assign(GraphRenderer,{
         fill.classList.toggle('rank1', r.rank===1);
       }
       el.querySelector('.bar-rank').textContent = r.rank+'위';
-      el.querySelector('.bar-score').textContent = r.score;
+      const scoreEl = el.querySelector('.bar-score');
+      scoreEl.textContent = r.score;
+      // 점수는 막대 아래가 아니라 막대 끝을 따라다니도록 표시한다.
+      // 상단에 닿는 큰 점수에서도 배지가 잘리지 않도록 안전 여백 안에서 제한한다.
+      scoreEl.style.bottom = Math.max(12, Math.min(heightPx + 10, zoneH - 42))+'px';
       el.querySelector('.bar-name').textContent = r.name;
       if(isNew===false && prevScore!==undefined && Number(prevScore)!==r.score){
         el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');
