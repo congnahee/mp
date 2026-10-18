@@ -8,6 +8,29 @@ const redis = new Redis({
 });
 
 const asText = value => (value == null ? '' : String(value)).trim();
+const safeAnswersFor = (session, answers, otherAnswers) => {
+  if (!answers || !Array.isArray(session && session.questions)) return null;
+  const safe = {}, safeOther = {};
+  for (const question of session.questions) {
+    const questionId = asText(question.id);
+    const raw = answers[questionId];
+    if ((question.type || 'choice') === 'text') {
+      const text = asText(raw).slice(0, 4000);
+      if (!text) return null;
+      safe[questionId] = text;
+    } else {
+      const optionId = asText(raw);
+      const otherId = `other:${questionId}`;
+      if (optionId === otherId && question.allowOther !== false) {
+        const otherText = asText(otherAnswers && otherAnswers[questionId]).slice(0, 4000);
+        if (!otherText) return null;
+        safeOther[questionId] = otherText;
+      } else if (!(question.options || []).some(option => asText(option.id) === optionId)) return null;
+      safe[questionId] = optionId;
+    }
+  }
+  return { answers:safe, otherAnswers:safeOther };
+};
 
 export default async function handler(req, res) {
   try {
@@ -56,13 +79,8 @@ export default async function handler(req, res) {
       if (!record || !record.session) return res.status(404).json({ error: '설문을 찾지 못했어요' });
       if (record.session.status !== 'live') return res.status(409).json({ error: '종료된 설문이에요' });
 
-      const questionIds = new Set(record.session.questions.map(q => asText(q.id)));
-      const validOptions = new Map(record.session.questions.map(q => [asText(q.id), new Set((q.options || []).map(o => asText(o.id)))]));
-      const safeAnswers = {};
-      for (const [questionId, optionId] of Object.entries(response.answers)) {
-        if (questionIds.has(questionId) && validOptions.get(questionId).has(asText(optionId))) safeAnswers[questionId] = asText(optionId);
-      }
-      if (Object.keys(safeAnswers).length !== questionIds.size) return res.status(400).json({ error: '모든 질문에 답해주세요' });
+      const safePayload = safeAnswersFor(record.session, response.answers, response.otherAnswers);
+      if (!safePayload) return res.status(400).json({ error: '모든 질문에 답해주세요' });
 
       let studentId = response.studentId ? asText(response.studentId) : null;
       let studentNumber = Number(response.studentNumber) || null;
@@ -79,13 +97,40 @@ export default async function handler(req, res) {
         participantKey: asText(response.participantKey).slice(0, 80),
         studentId,
         studentNumber,
-        answers: safeAnswers,
+        answers: safePayload.answers,
+        otherAnswers: safePayload.otherAnswers,
         submittedAt: Date.now(),
       };
       record.responses = record.responses || {};
       record.responses[safeResponse.participantKey] = safeResponse;
       await redis.set(key, record, { ex: 60 * 60 * 24 * 30 });
       return res.status(200).json({ ok: true, submittedAt: safeResponse.submittedAt });
+    }
+
+    if (action === 'adminSaveResponse') {
+      const code = asText(body.code), adminToken = asText(body.adminToken), response = body.response;
+      const key = `poll:${code}`, record = await redis.get(key);
+      if (!record || !record.session) return res.status(404).json({ error: '설문을 찾지 못했어요' });
+      if (!adminToken || adminToken !== record.adminToken) return res.status(403).json({ error: '관리자 권한이 필요해요' });
+      if (!response || !asText(response.participantKey)) return res.status(400).json({ error: '응답 정보가 올바르지 않아요' });
+      const safePayload = safeAnswersFor(record.session, response.answers, response.otherAnswers);
+      if (!safePayload) return res.status(400).json({ error: '모든 질문에 답해주세요' });
+      const participantKey = asText(response.participantKey).slice(0, 80), previous = (record.responses || {})[participantKey] || {};
+      record.responses = record.responses || {};
+      record.responses[participantKey] = {...previous,...response,participantKey,answers:safePayload.answers,otherAnswers:safePayload.otherAnswers,submittedAt:Number(response.submittedAt)||previous.submittedAt||Date.now(),editedAt:Date.now()};
+      await redis.set(key, record, { ex: 60 * 60 * 24 * 30 });
+      return res.status(200).json({ ok:true, editedAt:record.responses[participantKey].editedAt });
+    }
+
+    if (action === 'deleteResponse') {
+      const code = asText(body.code), adminToken = asText(body.adminToken), participantKey = asText(body.participantKey);
+      const key = `poll:${code}`, record = await redis.get(key);
+      if (!record || !record.session) return res.status(404).json({ error: '설문을 찾지 못했어요' });
+      if (!adminToken || adminToken !== record.adminToken) return res.status(403).json({ error: '관리자 권한이 필요해요' });
+      if (!participantKey) return res.status(400).json({ error: '삭제할 응답이 올바르지 않아요' });
+      if (record.responses) delete record.responses[participantKey];
+      await redis.set(key, record, { ex: 60 * 60 * 24 * 30 });
+      return res.status(200).json({ ok:true });
     }
 
     return res.status(400).json({ error: '알 수 없는 작업이에요' });

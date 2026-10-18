@@ -90,6 +90,12 @@ const StudentActivity={
     event=StudentActivity.record(cid,studentId,type,{key,...(data||{})},{...(options||{}),at});
     return event;
   },
+  removeByKey(cid,studentId,key){
+    if(!cid||!studentId||!key)return false;
+    const list=StudentActivity.list(cid,studentId),next=list.filter(item=>item.key!==key);
+    if(next.length===list.length)return false;
+    DB.studentActivity[cid][studentId]=next;return true;
+  },
   studentIdsForTarget(cid,targetType,targetId){
     if(targetType==='team')return (DB.students[cid]||[]).filter(s=>DB.studentTeam[cid]?.[s.id]===targetId).map(s=>s.id);
     return targetId?[targetId]:[];

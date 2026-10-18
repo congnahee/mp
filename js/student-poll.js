@@ -1,7 +1,7 @@
 "use strict";
 
 const StudentPoll={
-  session:null,participantKey:null,studentId:null,studentNumber:null,answers:{},channel:null,
+  session:null,participantKey:null,studentId:null,studentNumber:null,answers:{},otherAnswers:{},channel:null,
   esc(value){return String(value??'').replace(/[&<>'"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));},
   params:new URLSearchParams(location.search),
   async init(){
@@ -46,17 +46,18 @@ const StudentPoll={
   selectStudent(entry){StudentPoll.studentId=entry.id;StudentPoll.studentNumber=entry.number;StudentPoll.participantKey=entry.id;},
   renderQuestions(){
     const root=document.getElementById('studentPollRoot'),session=StudentPoll.session;
-    const saved=StudentPoll.readSaved();if(saved?.answers)StudentPoll.answers=saved.answers;
-    root.innerHTML=`<h1>${StudentPoll.esc(session.title)}</h1><p class="poll-student-desc">${session.mode==='anonymous'?'익명으로 응답합니다.':`${StudentPoll.studentNumber}번 학생으로 응답합니다.`} 모든 질문에 답한 뒤 제출해주세요.</p>${session.questions.map((q,qi)=>`<article class="poll-student-question"><div class="poll-student-qno">Q${qi+1}</div><h2>${StudentPoll.esc(q.text)}</h2>${(q.type||'choice')==='text'?`<textarea class="poll-student-text" data-question-text="${q.id}" rows="6" placeholder="생각을 문장으로 입력하세요">${StudentPoll.esc(StudentPoll.answers[q.id]||'')}</textarea>`:`<div class="poll-student-options">${(q.options||[]).map(o=>`<button class="poll-student-option ${StudentPoll.answers[q.id]===o.id?'selected':''}" data-question-id="${q.id}" data-option-id="${o.id}">${StudentPoll.esc(o.text)}</button>`).join('')}</div>`}</article>`).join('')}<button class="poll-student-primary" id="studentSubmit">응답 제출</button><div class="poll-student-privacy">응답은 선생님 설문 결과에 학생별로 저장됩니다.</div>`;
-    root.querySelectorAll('[data-option-id]').forEach(btn=>btn.onclick=()=>{StudentPoll.answers[btn.dataset.questionId]=btn.dataset.optionId;root.querySelectorAll(`[data-question-id="${btn.dataset.questionId}"]`).forEach(x=>x.classList.toggle('selected',x===btn));});
+    const saved=StudentPoll.readSaved();if(saved?.answers)StudentPoll.answers=saved.answers;if(saved?.otherAnswers)StudentPoll.otherAnswers=saved.otherAnswers;
+    root.innerHTML=`<h1>${StudentPoll.esc(session.title)}</h1><p class="poll-student-desc">${session.mode==='anonymous'?'익명으로 응답합니다.':`${StudentPoll.studentNumber}번 학생으로 응답합니다.`} 모든 질문에 답한 뒤 제출해주세요.</p>${session.questions.map((q,qi)=>{const otherId=`other:${q.id}`,otherSelected=StudentPoll.answers[q.id]===otherId;return`<article class="poll-student-question"><div class="poll-student-qno">Q${qi+1}</div><h2>${StudentPoll.esc(q.text)}</h2>${(q.type||'choice')==='text'?`<textarea class="poll-student-text" data-question-text="${q.id}" rows="6" placeholder="생각을 문장으로 입력하세요">${StudentPoll.esc(StudentPoll.answers[q.id]||'')}</textarea>`:`<div class="poll-student-options">${(q.options||[]).map(o=>`<button class="poll-student-option ${StudentPoll.answers[q.id]===o.id?'selected':''}" data-question-id="${q.id}" data-option-id="${o.id}">${StudentPoll.esc(o.text)}</button>`).join('')}${q.allowOther!==false?`<button class="poll-student-option ${otherSelected?'selected':''}" data-question-id="${q.id}" data-option-id="${otherId}">기타 (직접 입력)</button>`:''}</div>${q.allowOther!==false?`<textarea class="poll-student-other ${otherSelected?'is-visible':''}" data-question-other="${q.id}" rows="4" placeholder="기타 내용을 문장으로 입력하세요">${StudentPoll.esc(StudentPoll.otherAnswers[q.id]||'')}</textarea>`:''}`}</article>`;}).join('')}<button class="poll-student-primary" id="studentSubmit">응답 제출</button><div class="poll-student-privacy">응답은 선생님 설문 결과에 학생별로 저장됩니다.</div>`;
+    root.querySelectorAll('[data-option-id]').forEach(btn=>btn.onclick=()=>{const qid=btn.dataset.questionId;StudentPoll.answers[qid]=btn.dataset.optionId;root.querySelectorAll(`[data-question-id="${qid}"]`).forEach(x=>x.classList.toggle('selected',x===btn));const input=root.querySelector(`[data-question-other="${qid}"]`);if(input)input.classList.toggle('is-visible',btn.dataset.optionId===`other:${qid}`);});
     root.querySelectorAll('[data-question-text]').forEach(input=>input.oninput=()=>{StudentPoll.answers[input.dataset.questionText]=input.value;});
+    root.querySelectorAll('[data-question-other]').forEach(input=>input.oninput=()=>{StudentPoll.otherAnswers[input.dataset.questionOther]=input.value;});
     document.getElementById('studentSubmit').onclick=()=>StudentPoll.submit();
   },
   readSaved(){try{return JSON.parse(localStorage.getItem(`mp-poll-response-${StudentPoll.session.code}-${StudentPoll.participantKey}`)||'null');}catch(e){return null;}},
   async submit(){
     const session=StudentPoll.session;
-    if(session.questions.some(q=>(q.type||'choice')==='text'?!String(StudentPoll.answers[q.id]||'').trim():!StudentPoll.answers[q.id])){StudentPoll.flashButton('모든 질문에 답해주세요.');return;}
-    const response={participantKey:StudentPoll.participantKey,studentId:StudentPoll.studentId,studentNumber:StudentPoll.studentNumber,answers:StudentPoll.answers,submittedAt:Date.now()};
+    if(session.questions.some(q=>{const answer=StudentPoll.answers[q.id];if((q.type||'choice')==='text')return!String(answer||'').trim();if(!answer)return true;return answer===`other:${q.id}`&&!String(StudentPoll.otherAnswers[q.id]||'').trim();})){StudentPoll.flashButton('모든 질문에 답해주세요.');return;}
+    const response={participantKey:StudentPoll.participantKey,studentId:StudentPoll.studentId,studentNumber:StudentPoll.studentNumber,answers:StudentPoll.answers,otherAnswers:StudentPoll.otherAnswers,submittedAt:Date.now()};
     try{localStorage.setItem(`mp-poll-response-${session.code}-${StudentPoll.participantKey}`,JSON.stringify(response));}catch(e){}
     try{if(StudentPoll.channel)StudentPoll.channel.postMessage({type:'response',code:session.code});}catch(e){}
     let remoteOk=false;
