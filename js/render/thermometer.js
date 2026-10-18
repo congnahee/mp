@@ -1,12 +1,12 @@
 "use strict";
 /* ============================================================
-   THERMOMETER RENDERER — 0~10 값을 온도계 눈금 높이 + 색상으로
-   변환한다. 파랑(0, 차가움) → 청록 → 초록 → 노랑 → 주황 → 빨강(10, 뜨거움)
+   THERMOMETER RENDERER — 1~10 값을 온도계 눈금 높이 + 색상으로
+   변환한다. 0/기록 없음은 회색, 1부터 파랑 → 청록 → 초록 → 노랑 → 주황 → 빨강(10)
    순서로 이어지는 무지개 스펙트럼 그라데이션. 높이/색 변화는
    CSS transition으로 자연스럽게 오르내리는 모션이 된다.
 ============================================================ */
 function moodColor(value){
-  if(value===null || value===undefined) return 'var(--text-dim2)'; // 기록 없음 — 배경에 묻히지 않는 확실한 회색
+  if(value===null || value===undefined || Number(value)<=0) return 'var(--text-dim2)'; // 0/기록 없음 — 회색 초기 상태
   const t = clamp(value,0,10)/10;
   // 205°(하늘색) → -10°/350°(선명한 빨강)까지 215도를 스윕하면서
   // 청록·초록·노랑·주황을 자연스럽게 거쳐간다.
@@ -16,7 +16,8 @@ function moodColor(value){
 }
 function renderThermometer(container, value){
   if(!container) return;
-  const pct = (value===null || value===undefined) ? 0 : clamp(value,0,10)/10*100;
+  const isEmpty = value===null || value===undefined || Number(value)<=0;
+  const pct = isEmpty ? 0 : clamp(value,1,10)/10*100;
   const color = moodColor(value);
   if(!container.dataset.built){
     container.innerHTML = `<div class="thermo-tube"><div class="thermo-fill"></div></div><div class="thermo-bulb"></div>`;
@@ -25,7 +26,7 @@ function renderThermometer(container, value){
   const fill = container.querySelector('.thermo-fill');
   const bulb = container.querySelector('.thermo-bulb');
   fill.style.height = pct + '%';
-  fill.style.background = (value===null || value===undefined)
+  fill.style.background = isEmpty
     ? 'var(--panel-border)'
     : `linear-gradient(to top, ${moodColor(0)}, ${color})`;
   bulb.style.background = color;

@@ -51,7 +51,7 @@ function seedSampleData(){
   const monthlySet = {id:uid(), name:'월별선물', gifts:{1:'문화상품권', 2:'젤리세트'}};
   DB.giftSets[cid] = [birthdaySet, monthlySet];
   DB.activeGiftSetId[cid] = birthdaySet.id;
-  DB.selection[cid] = {targetType:'student', targetId: DB.students[cid][0].id, points:10, quizId:null, brushValue:null};
+  DB.selection[cid] = {targetType:'student', targetId:null, points:10, quizId:null};
 
   // 기분 온도계 샘플 (오늘자, 수업 전/후 몇 명만 채워서 바로 체험 가능하게)
   const todayStr = formatDateYMD(new Date());

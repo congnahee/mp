@@ -4,11 +4,13 @@
 ============================================================ */
 async function init(){
   const saved = await storageGet('arena-data');
+  let seeded = false;
   if(saved && saved.classes && saved.classes.length>0){
     DB = Object.assign(DB, saved);
   } else {
     seedSampleData();
-    scheduleSave();
+    seeded = true;
+    await saveLocalCache();
   }
   DB.classes.forEach(c=>ensureClassData(c.id));
   applyTheme();
@@ -27,5 +29,6 @@ async function init(){
     const ok2 = await ServerSync.connect(ServerSync.key);
     updateServerStatus();
   }
+  if(seeded && !CloudSync.connected && !ServerSync.connected) scheduleSave();
 }
 init();
